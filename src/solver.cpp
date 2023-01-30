@@ -1,42 +1,73 @@
-#include "calc_solver.h"
+#include "solver.h"
+#include "logger.h"
 
 namespace yutovo_service
 {
 
-CalcSolver::CalcSolver() :
-    logger(Logger::GetInstance("programs/Math/bin", "calc_solver", true, true))
+//Solver
+
+void Solver::ReplyError(const ErrorCode error_code, rapidjson::Document& reply)
 {
-    logger->Info("CalcSolver start");
+    rapidjson::Value error;
+    error.SetObject();
+    auto& alloc = reply.GetAllocator();
+    error.AddMember("error_code", (int)error_code, alloc);
+    reply.AddMember("error", error, alloc);
 }
 
-CalcSolver::~CalcSolver()
+void Solver::ReplyError(const yutovo_calculator::ParserException ex, rapidjson::Document& reply)
 {
-    logger->Info("CalcSolver end");
+    rapidjson::Value error;
+    error.SetObject();
+    auto& alloc = reply.GetAllocator();
+    error.AddMember("error_code", ex.id, alloc);
+    error.AddMember("pos", ex.pos, alloc);
+    error.AddMember("line", ex.line, alloc);
+    reply.AddMember("error", error, alloc);
 }
 
-bool CalcSolver::Solve(const rapidjson::Document& request, rapidjson::Document& reply)
+//CalculatorSolver
+
+CalculatorSolver::CalculatorSolver() :
+    real_parser(0),
+    integer_parser(0),
+    rational_parser(0),
+    logger(Logger::GetInstance(std::string(std::getenv("YUTOVO_DEPLOY")) + "/log", "solver", true, true))
 {
+}
+
+void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Document& reply)
+{
+    reply.SetObject();
+    if (just_started)
+    {
+        just_started = false;
+        ReplyError(ErrorCode::SOLVER_RESTARTED_ERROR, reply);
+        return;
+    }
+
     if (!request.HasMember("result_type") || !request["result_type"].IsInt())
     {
         logger->Error("result_type error");
-        return false;
+        ReplyError(ErrorCode::NO_FIELD_ERROR, reply);
+        return;
     }
 
     if (!request.HasMember("expression") || !request["expression"].IsString())
     {
         logger->Error("expression error");
-        return false;
+        ReplyError(ErrorCode::NO_FIELD_ERROR, reply);
+        return;
     }
 
     std::string expression = request["expression"].GetString();
-    int result_type = request["result_type"].GetInt();
+    ResultType result_type = (ResultType)request["result_type"].GetInt();
 
-    reply.SetObject();
     auto& alloc = reply.GetAllocator();
 
     switch (result_type)
     {
-    case 1: //real
+    case ResultType::REAL:
         {
             int precision = 3;
             if (request.HasMember("precision") && request["precision"].IsInt())
@@ -54,21 +85,16 @@ bool CalcSolver::Solve(const rapidjson::Document& request, rapidjson::Document& 
             if (request.HasMember("exponent_size") && request["exponent_size"].IsInt())
                 exponent_size = request["exponent_size"].GetInt();
             
-            yutovo_calc::Parser<yutovo_calc::Real> parser(precision);
-            yutovo_calc::Real res;
+            yutovo_calculator::Real res;
 
             try
             {
-                res = parser.Parse(expression);
+                real_parser.SetPrecision(precision);
+                res = real_parser.Parse(expression);
             }
-            catch (yutovo_calc::ParserException ex)
+            catch (yutovo_calculator::ParserException ex)
             {
-                rapidjson::Value error;
-                error.SetObject();
-                error.AddMember("id", ex.id, alloc);
-                error.AddMember("pos", ex.pos, alloc);
-                error.AddMember("line", ex.line, alloc);
-                reply.AddMember("error", error, alloc);
+                ReplyError(ex, reply);
                 break;
             }
 
@@ -92,26 +118,20 @@ bool CalcSolver::Solve(const rapidjson::Document& request, rapidjson::Document& 
             }
         }
         break;
-    case 2: //integer
+    case ResultType::INTEGER:
         {
             int notation = 1;
             if (request.HasMember("notation") && request["notation"].IsInt())
                 notation = request["notation"].GetInt();
             
-            yutovo_calc::Parser<yutovo_calc::Integer> parser(0);
-            yutovo_calc::Integer res;
+            yutovo_calculator::Integer res;
             try
             {
-                res = parser.Parse(expression);
+                res = integer_parser.Parse(expression);
             }
-            catch (yutovo_calc::ParserException ex)
+            catch (yutovo_calculator::ParserException ex)
             {
-                rapidjson::Value error;
-                error.SetObject();
-                error.AddMember("id", ex.id, alloc);
-                error.AddMember("pos", ex.pos, alloc);
-                error.AddMember("line", ex.line, alloc);
-                reply.AddMember("error", error, alloc);
+                ReplyError(ex, reply);
                 break;
             }
 
@@ -121,22 +141,16 @@ bool CalcSolver::Solve(const rapidjson::Document& request, rapidjson::Document& 
             reply.AddMember("value", val, alloc);
         }
         break;
-    case 3: //fractional
+    case ResultType::RATIONAL:
         {
-            yutovo_calc::Parser<yutovo_calc::Rational> parser(0);
-            yutovo_calc::Rational res;
+            yutovo_calculator::Rational res;
             try
             {
-                res = parser.Parse(expression);
+                res = rational_parser.Parse(expression);
             }
-            catch (yutovo_calc::ParserException ex)
+            catch (yutovo_calculator::ParserException ex)
             {
-                rapidjson::Value error;
-                error.SetObject();
-                error.AddMember("id", ex.id, alloc);
-                error.AddMember("pos", ex.pos, alloc);
-                error.AddMember("line", ex.line, alloc);
-                reply.AddMember("error", error, alloc);
+                ReplyError(ex, reply);
                 break;
             }
 
@@ -150,11 +164,40 @@ bool CalcSolver::Solve(const rapidjson::Document& request, rapidjson::Document& 
             reply.AddMember("denomerator", d, alloc);
         }
         break;
-    case 4: //complex
+    }
+}
+
+//PythonSolver
+
+void PythonSolver::Solve(const rapidjson::Document& request, rapidjson::Document& reply)
+{
+}
+
+//Solvers
+
+Solvers::Solvers()
+{
+}
+
+SolverPtr Solvers::GetSolver(const std::string& solver_id, SolverType solver_type)
+{
+    auto it = solvers.find(solver_id);
+    if (it != solvers.end())
+        return it->second;
+    
+    switch (solver_type)
+    {
+    case SolverType::CALCULATOR:
+        {
+            SolverPtr solver(new CalculatorSolver());
+            solvers[solver_id] = solver;
+            return solver;
+        }
+    case SolverType::PYTHON:
         break;
     }
 
-    return true;
+    return nullptr;
 }
 
 }

@@ -9,17 +9,21 @@ find_package(yutovo_calculator REQUIRED PATHS ${INSTALL_PATH}/cmake/)
 
 add_executable(${PROJECT_NAME}
     main.cpp
-    calc_solver.cpp
+    proxy.cpp
+    solver.cpp
     logger.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE 
     stdc++
     stdc++fs
+    pthread
     zmq
     yutovo_calculator
-    mpfr
-    gmp
+)
+
+target_include_directories(${PROJECT_NAME} PUBLIC
+    $<INSTALL_INTERFACE:${INSTALL_PATH}/include>
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -29,6 +33,28 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 install(
     TARGETS ${PROJECT_NAME}
     EXPORT ${PROJECT_NAME}
-    DESTINATION ${INSTALL_PATH}/bin
+    DESTINATION ${INSTALL_PATH}/lib
+    COMPONENT ${PROJECT_NAME}
+)
+
+install(
+    FILES 
+        proxy.h
+        service.h
+        solver.h
+    DESTINATION ${INSTALL_PATH}/include/${PROJECT_NAME}
+    COMPONENT ${PROJECT_NAME}
+)
+
+install(
+    EXPORT ${PROJECT_NAME}
+    DESTINATION ${INSTALL_PATH}/cmake/${PROJECT_NAME}
+    COMPONENT ${PROJECT_NAME}
+    FILE ${PROJECT_NAME}.cmake
+)
+
+install(
+    FILES ${PROJECT_NAME}-config.cmake
+    DESTINATION ${INSTALL_PATH}/cmake/${PROJECT_NAME}
     COMPONENT ${PROJECT_NAME}
 )
