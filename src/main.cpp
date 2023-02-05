@@ -4,7 +4,7 @@
 #include "rapidjson/stringbuffer.h"
 #include "proxy.h"
 #include "logger.h"
-#include <yutovo_editor/solver_task.h>
+#include "service_context.h"
 
 using namespace yutovo_service;
 
@@ -13,9 +13,9 @@ int main(int argc, char *argv[])
     Logger* logger = Logger::GetInstance(std::string(std::getenv("YUTOVO_DEPLOY")) + "/log", "solver", true, true);
     logger->Info("Yutovo service start");
 
-    zmq::context_t context(1);
+    ServiceContext service_context;
 
-    Solvers solvers;
+    zmq::context_t context(1);
 
     zmq::socket_t frontend(context, ZMQ_ROUTER);
     zmq::socket_t proxy(context, ZMQ_DEALER);
@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
 
     std::vector<ProxyPtr> proxies;
 
-    while (true)
+    while (!service_context.exit)
     {
         zmq::message_t message;
         int more;
@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
                 if (proxy.send(message, more ? ZMQ_SNDMORE : 0) == 0)
                 {
                     //add new proxy
-                    proxies.emplace_back(new Proxy(solvers));
+                    proxies.emplace_back(new Proxy(&service_context));
                     if (proxy.send(message, more ? ZMQ_SNDMORE : 0) == 0)
                     {
                         logger->Error("Error sending message");

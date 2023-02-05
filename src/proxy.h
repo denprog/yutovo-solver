@@ -8,24 +8,26 @@ namespace yutovo_service
 {
 
 class Logger;
+class ServiceContext;
 
 //Service proxy creates a solver and redirects messages
 class Proxy
 {
 public:
-    Proxy(Solvers& _solvers);
+    Proxy(ServiceContext* _service_context);
     ~Proxy();
 
 private:
     void MessageLoop();
 
     void SendError(const ErrorCode error_code, zmq::socket_t& socket);
+    void SendOk(zmq::socket_t& socket);
     void SendReply(const rapidjson::Document& json, zmq::socket_t& socket);
 
 private:
     std::thread message_loop;
 
-    Solvers& solvers;
+    ServiceContext* service_context;
 
     Logger* logger;
 

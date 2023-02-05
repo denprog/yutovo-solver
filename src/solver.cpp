@@ -167,9 +167,38 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
     }
 }
 
+void CalculatorSolver::RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply)
+{
+    if (!request.HasMember("expression") || !request["expression"].IsString())
+    {
+        logger->Error("expression error");
+        ReplyError(ErrorCode::NO_FIELD_ERROR, reply);
+        return;
+    }
+    std::string identifier = request["expression"].GetString();
+
+    try
+    {
+        real_parser.RemoveIdentifier(identifier);
+        integer_parser.RemoveIdentifier(identifier);
+        rational_parser.RemoveIdentifier(identifier);
+    }
+    catch (yutovo_calculator::ParserException ex)
+    {
+        ReplyError(ex, reply);
+        return;
+    }
+
+    ReplyError(ErrorCode::OK, reply);
+}
+
 //PythonSolver
 
 void PythonSolver::Solve(const rapidjson::Document& request, rapidjson::Document& reply)
+{
+}
+
+void PythonSolver::RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply)
 {
 }
 

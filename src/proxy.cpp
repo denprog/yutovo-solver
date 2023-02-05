@@ -4,15 +4,16 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include "logger.h"
+#include "service_context.h"
 
 namespace yutovo_service
 {
 
 //Proxy
 
-Proxy::Proxy(Solvers& _solvers) :
+Proxy::Proxy(ServiceContext* _service_context) :
     message_loop(std::thread(&Proxy::MessageLoop, this)),
-    solvers(_solvers),
+    service_context(_service_context),
     logger(Logger::GetInstance(std::string(std::getenv("YUTOVO_DEPLOY")) + "/log", "solver", true, true))
 {
 }
@@ -46,39 +47,74 @@ void Proxy::MessageLoop()
             SendError(ErrorCode::JSON_ERROR, socket);
             continue;
         }
-        
-        if (!request_json.HasMember("guid") || !request_json["guid"].IsString())
+
+        if (!request_json.HasMember("command") || !request_json["command"].IsString())
         {
             SendError(ErrorCode::NO_FIELD_ERROR, socket);
             continue;
         }
-        std::string guid = request_json["guid"].GetString();
 
-        if (!request_json.HasMember("code_id") || !request_json["code_id"].IsInt())
+        std::string command = request_json["command"].GetString();
+        SolverPtr solver;
+
+        if (command == "EXIT")
         {
-            SendError(ErrorCode::NO_FIELD_ERROR, socket);
+            service_context->exit = true;
+            SendOk(socket);
             continue;
         }
-        int code_id = request_json["code_id"].GetInt();
-
-        if (!request_json.HasMember("solver_type") || !request_json["solver_type"].IsInt())
+        else if (command == "SOLVE_CODE" || command == "REMOVE_IDENTIFIER")
         {
-            SendError(ErrorCode::NO_FIELD_ERROR, socket);
-            continue;
+            if (!request_json.HasMember("guid") || !request_json["guid"].IsString())
+            {
+                SendError(ErrorCode::NO_FIELD_ERROR, socket);
+                continue;
+            }
+            std::string guid = request_json["guid"].GetString();
+
+            if (!request_json.HasMember("code_id") || !request_json["code_id"].IsInt())
+            {
+                SendError(ErrorCode::NO_FIELD_ERROR, socket);
+                continue;
+            }
+            int code_id = request_json["code_id"].GetInt();
+
+            if (!request_json.HasMember("solver_type") || !request_json["solver_type"].IsInt())
+            {
+                SendError(ErrorCode::NO_FIELD_ERROR, socket);
+                continue;
+            }
+            SolverType solver_type = (SolverType)request_json["solver_type"].GetInt();
+
+            std::string solver_id = guid + "-" + std::to_string(code_id);
+            solver = service_context->solvers.GetSolver(solver_id, solver_type);
+            if (!solver)
+            {
+                SendError(ErrorCode::SOLVER_ERROR, socket);
+                continue;
+            }
         }
-        SolverType solver_type = (SolverType)request_json["solver_type"].GetInt();
-
-        std::string solver_id = guid + "-" + std::to_string(code_id);
-        SolverPtr solver = solvers.GetSolver(solver_id, solver_type);
-        if (!solver)
+        else
         {
-            SendError(ErrorCode::SOLVER_ERROR, socket);
+            SendError(ErrorCode::UNKNOWN_COMMAND, socket);
             continue;
         }
 
         rapidjson::Document response_json;
-        solver->Solve(request_json, response_json);
-        SendReply(response_json, socket);
+        response_json.SetObject();
+        if (command == "SOLVE_CODE")
+        {
+            solver->Solve(request_json, response_json);
+            SendReply(response_json, socket);
+            continue;
+        }
+
+        if (command == "REMOVE_IDENTIFIER")
+        {
+            solver->RemoveIdentifier(request_json, response_json);
+            SendReply(response_json, socket);
+            continue;
+        }
     }
 }
 
@@ -89,6 +125,16 @@ void Proxy::SendError(const ErrorCode error_code, zmq::socket_t& socket)
     rapidjson::Value error;
     error.SetObject();
     response_json.AddMember("error", (int)error_code, alloc);
+    SendReply(response_json, socket);
+}
+
+void Proxy::SendOk(zmq::socket_t& socket)
+{
+    rapidjson::Document response_json;
+    auto& alloc = response_json.GetAllocator();
+    rapidjson::Value result;
+    result.SetObject();
+    response_json.AddMember("result", (int)ErrorCode::OK, alloc);
     SendReply(response_json, socket);
 }
 

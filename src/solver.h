@@ -32,7 +32,8 @@ enum class ResultType
 
 enum class ErrorCode
 {
-    NONE = 0,
+    OK = 0,
+    UNKNOWN_COMMAND,
     JSON_ERROR, //json was not parsed
     NO_FIELD_ERROR, //there is no field requeried
     SOLVER_ERROR, //solver was not created or executed
@@ -45,6 +46,7 @@ class Solver
 {
 public:
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
+    virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
 
 protected:
     void ReplyError(const ErrorCode error_code, rapidjson::Document& reply);
@@ -59,6 +61,7 @@ public:
     CalculatorSolver();
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
+    virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply);
 
 private:
     yutovo_calculator::Parser<yutovo_calculator::Real> real_parser;
@@ -74,6 +77,7 @@ class PythonSolver : public Solver
 {
 public:
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
+    virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply);
 };
 
 class Solvers

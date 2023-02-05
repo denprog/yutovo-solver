@@ -39,8 +39,8 @@ install(
 
 install(
     FILES 
+        service_context.h
         proxy.h
-        service.h
         solver.h
     DESTINATION ${INSTALL_PATH}/include/${PROJECT_NAME}
     COMPONENT ${PROJECT_NAME}
