@@ -37,7 +37,7 @@ enum class ErrorCode
     JSON_ERROR, //json was not parsed
     NO_FIELD_ERROR, //there is no field requeried
     SOLVER_ERROR, //solver was not created or executed
-    EXPRESSION_ERROR, //expression was not parsed
+    PARSER_ERROR, //expression was not parsed
     SOLVER_TIMEOUT_ERROR, 
     SOLVER_RESTARTED_ERROR //all connected code blocks need to be reevaluated
 };

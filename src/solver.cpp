@@ -20,7 +20,8 @@ void Solver::ReplyError(const yutovo_calculator::ParserException ex, rapidjson::
     rapidjson::Value error;
     error.SetObject();
     auto& alloc = reply.GetAllocator();
-    error.AddMember("error_code", ex.id, alloc);
+    error.AddMember("error_code", (int)ErrorCode::PARSER_ERROR, alloc);
+    error.AddMember("parser_error_code", ex.id, alloc);
     error.AddMember("pos", ex.pos, alloc);
     error.AddMember("line", ex.line, alloc);
     reply.AddMember("error", error, alloc);
