@@ -12,6 +12,7 @@ add_executable(${PROJECT_NAME}
     proxy.cpp
     solver.cpp
     logger.cpp
+    config.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE 

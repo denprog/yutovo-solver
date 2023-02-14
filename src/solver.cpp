@@ -1,10 +1,16 @@
 #include "solver.h"
 #include "logger.h"
+#include "config.h"
 
 namespace yutovo_service
 {
 
 //Solver
+
+Solver::Solver(const std::string& _guid) :
+    guid(_guid)
+{
+}
 
 void Solver::ReplyError(const ErrorCode error_code, rapidjson::Document& reply)
 {
@@ -29,16 +35,25 @@ void Solver::ReplyError(const yutovo_calculator::ParserException ex, rapidjson::
 
 //CalculatorSolver
 
-CalculatorSolver::CalculatorSolver() :
+CalculatorSolver::CalculatorSolver(const std::string& _guid) :
+    Solver(_guid),
     real_parser(0),
     integer_parser(0),
     rational_parser(0),
-    logger(Logger::GetInstance(std::string(std::getenv("YUTOVO_DEPLOY")) + "/log", "solver", true, true))
+    logger(Logger::GetInstance(std::string(std::getenv("YUTOVO_DEPLOY")) + "/log", "calculator_solver", true, true))
 {
+    logger->Info("Calculator Solver started: {}", guid);
+}
+
+CalculatorSolver::~CalculatorSolver()
+{
+    logger->Info("Calculator Solver finished: {}", guid);
 }
 
 void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Document& reply)
 {
+    idle_time = time(nullptr);
+
     reply.SetObject();
     if (just_started)
     {
@@ -170,6 +185,8 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
 
 void CalculatorSolver::RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply)
 {
+    idle_time = time(nullptr);
+
     if (!request.HasMember("expression") || !request["expression"].IsString())
     {
         logger->Error("expression error");
@@ -195,22 +212,38 @@ void CalculatorSolver::RemoveIdentifier(const rapidjson::Document& request, rapi
 
 //PythonSolver
 
+PythonSolver::PythonSolver(const std::string& _guid) :
+    Solver(_guid),
+    logger(Logger::GetInstance(std::string(std::getenv("YUTOVO_DEPLOY")) + "/log", "python_solver", true, true))
+{
+    logger->Info("Python Solver started: {}", guid);
+}
+
+PythonSolver::~PythonSolver()
+{
+    logger->Info("Python Solver finished: {}", guid);
+}
+
 void PythonSolver::Solve(const rapidjson::Document& request, rapidjson::Document& reply)
 {
+    idle_time = time(nullptr);
 }
 
 void PythonSolver::RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply)
 {
+    idle_time = time(nullptr);
 }
 
 //Solvers
 
-Solvers::Solvers()
+Solvers::Solvers(Config* _config) :
+    config(_config)
 {
 }
 
 SolverPtr Solvers::GetSolver(const std::string& solver_id, SolverType solver_type)
 {
+    std::lock_guard<std::mutex> lock(solvers_mutex);
     auto it = solvers.find(solver_id);
     if (it != solvers.end())
         return it->second;
@@ -219,7 +252,7 @@ SolverPtr Solvers::GetSolver(const std::string& solver_id, SolverType solver_typ
     {
     case SolverType::CALCULATOR:
         {
-            SolverPtr solver(new CalculatorSolver());
+            SolverPtr solver(new CalculatorSolver(solver_id));
             solvers[solver_id] = solver;
             return solver;
         }
@@ -228,6 +261,20 @@ SolverPtr Solvers::GetSolver(const std::string& solver_id, SolverType solver_typ
     }
 
     return nullptr;
+}
+
+void Solvers::RemoveTimeouted()
+{
+    std::lock_guard<std::mutex> lock(solvers_mutex);
+    for (auto it = solvers.begin(); it != solvers.end();)
+    {
+        if (time(nullptr) - it->second->idle_time > config->solver_idle_timeout)
+        {
+            solvers.erase(it++);
+            continue;
+        }
+        ++it;
+    }
 }
 
 }

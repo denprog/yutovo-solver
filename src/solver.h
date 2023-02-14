@@ -4,6 +4,7 @@
 #include <zmq.hpp>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <yutovo_calculator/parser.h>
 #include "rapidjson/document.h"
 
@@ -11,6 +12,7 @@ namespace yutovo_service
 {
 
 class Logger;
+class Config;
 
 enum class SolverType
 {
@@ -45,12 +47,20 @@ enum class ErrorCode
 class Solver
 {
 public:
+    Solver(const std::string& _guid);
+
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
 
 protected:
     void ReplyError(const ErrorCode error_code, rapidjson::Document& reply);
     void ReplyError(const yutovo_calculator::ParserException ex, rapidjson::Document& reply);
+
+public:
+    time_t idle_time = time(nullptr);
+
+protected:
+    std::string guid;
 };
 
 typedef std::shared_ptr<Solver> SolverPtr;
@@ -58,7 +68,8 @@ typedef std::shared_ptr<Solver> SolverPtr;
 class CalculatorSolver : public Solver
 {
 public:
-    CalculatorSolver();
+    CalculatorSolver(const std::string& _guid);
+    ~CalculatorSolver();
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply);
@@ -76,19 +87,28 @@ private:
 class PythonSolver : public Solver
 {
 public:
+    PythonSolver(const std::string& _guid);
+    ~PythonSolver();
+
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply);
+
+private:
+    Logger* logger;
 };
 
 class Solvers
 {
 public:
-    Solvers();
+    Solvers(Config* _config);
 
     SolverPtr GetSolver(const std::string& solver_id, SolverType solver_type);
+    void RemoveTimeouted();
 
 private:
+    std::mutex solvers_mutex;
     std::map<std::string, SolverPtr> solvers;
+    Config* config;
 };
 
 }

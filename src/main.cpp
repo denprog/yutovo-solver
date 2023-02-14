@@ -2,6 +2,7 @@
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
+#include "config.h"
 #include "proxy.h"
 #include "logger.h"
 #include "service_context.h"
@@ -13,7 +14,10 @@ int main(int argc, char *argv[])
     Logger* logger = Logger::GetInstance(std::string(std::getenv("YUTOVO_DEPLOY")) + "/log", "solver", true, true);
     logger->Info("Yutovo service start");
 
-    ServiceContext service_context;
+    Config config(logger);
+    config.Read();
+
+    ServiceContext service_context(&config);
 
     zmq::context_t context(1);
 
@@ -43,7 +47,20 @@ int main(int argc, char *argv[])
         int more;
         size_t more_size = sizeof(more);
 
-        zmq::poll(items, 2, -1);
+        if (zmq::poll(items, 2, 1000) == 0)
+        {
+            for (size_t i = 0; i < proxies.size();)
+            {
+                if (proxies[i]->idle_time > config.proxy_idle_timeout)
+                {
+                    proxies.erase(proxies.begin() + i);
+                    continue;
+                }
+                ++i;
+            }
+
+            service_context.solvers.RemoveTimeouted();
+        }
 
         if (items[0].revents & ZMQ_POLLIN)
         {
@@ -54,7 +71,7 @@ int main(int argc, char *argv[])
                 if (proxy.send(message, more ? ZMQ_SNDMORE : 0) == 0)
                 {
                     //add new proxy
-                    proxies.emplace_back(new Proxy(&service_context));
+                    proxies.emplace_back(new Proxy(&service_context, &config));
                     if (proxy.send(message, more ? ZMQ_SNDMORE : 0) == 0)
                     {
                         logger->Error("Error sending message");

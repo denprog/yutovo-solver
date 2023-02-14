@@ -5,23 +5,27 @@
 #include "rapidjson/stringbuffer.h"
 #include "logger.h"
 #include "service_context.h"
+#include "config.h"
 
 namespace yutovo_service
 {
 
 //Proxy
 
-Proxy::Proxy(ServiceContext* _service_context) :
+Proxy::Proxy(ServiceContext* _service_context, Config* _config) :
     message_loop(std::thread(&Proxy::MessageLoop, this)),
     service_context(_service_context),
+    config(_config),
     logger(Logger::GetInstance(std::string(std::getenv("YUTOVO_DEPLOY")) + "/log", "solver", true, true))
 {
+    logger->Info("Proxy created");
 }
 
 Proxy::~Proxy()
 {
     exit = true;
     message_loop.join();
+    logger->Info("Proxy finished");
 }
 
 void Proxy::MessageLoop()
@@ -31,12 +35,20 @@ void Proxy::MessageLoop()
     socket.setsockopt(ZMQ_RCVTIMEO, 1000);
     socket.connect("tcp://localhost:8011");
 
+    std::time_t now_t = ::time(nullptr);
+
     while (!exit)
     {
         zmq::message_t request;
         if (socket.recv(&request) == 0)
+        {
+            idle_time = ::time(nullptr) - now_t;
             continue;
+        }
         
+        now_t = ::time(nullptr);
+        idle_time = 0;
+
         //get GUID and code_id from the message
         std::string json = std::string((const char*)request.data(), request.size());
         logger->Info("Request received:\n{}", json);
