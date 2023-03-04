@@ -15,6 +15,8 @@ add_executable(${PROJECT_NAME}
     config.cpp
 )
 
+target_compile_options(${PROJECT_NAME} PUBLIC -Wno-deprecated-declarations)
+
 target_link_libraries(${PROJECT_NAME} PRIVATE 
     stdc++
     stdc++fs

@@ -151,7 +151,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                 break;
             }
 
-            std::string s = res.ToString();
+            std::string s = res.ToStdString();
             rapidjson::Value val(rapidjson::kStringType);
             val.SetString(s.c_str(), s.size(), alloc);
             reply.AddMember("value", val, alloc);
@@ -170,8 +170,8 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                 break;
             }
 
-            std::string numerator = res.GetNumerator().ToString();
-            std::string denomerator = res.GetDenomerator().ToString();
+            std::string numerator = res.GetNumerator().ToStdString();
+            std::string denomerator = res.GetDenomerator().ToStdString();
             rapidjson::Value n(rapidjson::kStringType);
             n.SetString(numerator.c_str(), numerator.size(), alloc);
             reply.AddMember("numerator", n, alloc);
