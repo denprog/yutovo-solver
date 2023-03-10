@@ -36,7 +36,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 install(
     TARGETS ${PROJECT_NAME}
     EXPORT ${PROJECT_NAME}
-    DESTINATION ${INSTALL_PATH}/lib
+    DESTINATION ${INSTALL_PATH}/bin
     COMPONENT ${PROJECT_NAME}
 )
 
