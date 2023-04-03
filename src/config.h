@@ -16,6 +16,7 @@ public:
     bool Read();
 
 public:
+    int threads_count = 2;
     int proxy_idle_timeout = 10; //in seconds
     int solver_idle_timeout = 20;
 

@@ -1,15 +1,16 @@
 cmake_minimum_required(VERSION 3.17)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+find_package(PkgConfig REQUIRED)
 find_package(yutovo_calculator REQUIRED PATHS ${INSTALL_PATH}/cmake/)
 
 add_executable(${PROJECT_NAME}
     main.cpp
-    proxy.cpp
+    session.cpp
     solver.cpp
     logger.cpp
     config.cpp
@@ -21,7 +22,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     stdc++
     stdc++fs
     pthread
-    zmq
     yutovo_calculator
 )
 
@@ -43,8 +43,7 @@ install(
 install(
     FILES 
         service_context.h
-        proxy.h
-        solver.h
+        types.h
     DESTINATION ${INSTALL_PATH}/include/${PROJECT_NAME}
     COMPONENT ${PROJECT_NAME}
 )

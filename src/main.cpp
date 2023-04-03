@@ -1,13 +1,98 @@
-#include <zmq.hpp>
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include "config.h"
-#include "proxy.h"
 #include "logger.h"
 #include "service_context.h"
+#include "session.h"
+#include <boost/beast/core.hpp>
+#include <boost/beast/websocket.hpp>
+#include <boost/asio/buffers_iterator.hpp>
+#include <boost/asio/awaitable.hpp>
+#include <boost/asio/co_spawn.hpp>
+#include <boost/asio/detached.hpp>
+#include <boost/asio/use_awaitable.hpp>
 
 using namespace yutovo_service;
+
+namespace beast = boost::beast;         // from <boost/beast.hpp>
+namespace http = beast::http;           // from <boost/beast/http.hpp>
+namespace websocket = beast::websocket; // from <boost/beast/websocket.hpp>
+namespace net = boost::asio;            // from <boost/asio.hpp>
+using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
+
+using stream = websocket::stream<typename beast::tcp_stream::rebind_executor<typename net::use_awaitable_t<>::executor_with_default<net::any_io_executor>>::other>;
+
+net::awaitable<void> DoSession(stream ws, ServiceContext* service_context, Logger* logger)
+{
+    ws.set_option(websocket::stream_base::timeout::suggested(beast::role_type::server));
+    ws.set_option(websocket::stream_base::decorator(
+        [](websocket::response_type& res)
+        {
+            res.set(http::field::server, std::string(BOOST_BEAST_VERSION_STRING) + " websocket-server-coro");
+        }));
+
+    co_await ws.async_accept();
+
+    beast::flat_buffer buffer;
+
+    Session session(service_context, logger);
+
+    while (true)
+    {
+        try
+        {
+            buffer.clear();
+            co_await ws.async_read(buffer);
+
+            if (!ws.got_text())
+                continue;
+
+            std::string json(boost::asio::buffers_begin(buffer.data()), boost::asio::buffers_end(buffer.data()));
+            logger->Info("Request received:\n{}", json);
+
+            std::string reply;
+            session.Parse(json, reply);
+
+            ws.text(ws.got_text());
+
+            co_await ws.async_write(boost::asio::buffer(reply));
+            logger->Info("Reply sent:\n{}", reply);
+        }
+        catch (boost::system::system_error& err)
+        {
+            if (err.code() != websocket::error::closed)
+                throw;
+        }
+    }
+}
+
+net::awaitable<void> DoListen(tcp::endpoint end_point, ServiceContext* service_context, Logger* logger)
+{
+    auto acceptor = net::use_awaitable.as_default_on(tcp::acceptor(co_await net::this_coro::executor));
+    acceptor.open(end_point.protocol());
+    acceptor.set_option(net::socket_base::reuse_address(true));
+
+    acceptor.bind(end_point);
+
+    acceptor.listen(net::socket_base::max_listen_connections);
+
+    while (true)
+    {
+        boost::asio::co_spawn(acceptor.get_executor(), DoSession(stream(co_await acceptor.async_accept()), service_context, logger), 
+            [logger](std::exception_ptr ex)
+            {
+                try
+                {
+                    std::rethrow_exception(ex);
+                }
+                catch (std::exception& e)
+                {
+                    logger->Error("Error in session: {}", e.what());
+                }
+            });
+    }
+}
 
 int main(int argc, char *argv[])
 {
@@ -19,82 +104,37 @@ int main(int argc, char *argv[])
 
     ServiceContext service_context(&config);
 
-    zmq::context_t context(1);
+    auto const address = net::ip::make_address("0.0.0.0");
+    unsigned short const port = 8010;
 
-    zmq::socket_t frontend(context, ZMQ_ROUTER);
-    zmq::socket_t proxy(context, ZMQ_DEALER);
+    net::io_context ioc{1};
 
-    frontend.bind("tcp://*:8010");
-    proxy.bind("tcp://*:8011");
-
-    proxy.setsockopt(ZMQ_SNDTIMEO, 1000);
-
-    zmq::pollitem_t items[] = 
+    boost::asio::co_spawn(ioc, DoListen(tcp::endpoint{address, port}, &service_context, logger),
+        [logger](std::exception_ptr ex)
         {
+            if (ex)
             {
-                (void*)frontend, 0, ZMQ_POLLIN, 0
-            },
-            {
-                (void*)proxy, 0, ZMQ_POLLIN, 0
-            }
-        };
-
-    std::vector<ProxyPtr> proxies;
-
-    while (!service_context.exit)
-    {
-        zmq::message_t message;
-        int more;
-        size_t more_size = sizeof(more);
-
-        if (zmq::poll(items, 2, 1000) == 0)
-        {
-            for (size_t i = 0; i < proxies.size();)
-            {
-                if (proxies[i]->idle_time > config.proxy_idle_timeout)
+                try
                 {
-                    proxies.erase(proxies.begin() + i);
-                    continue;
+                    std::rethrow_exception(ex);
                 }
-                ++i;
-            }
-
-            service_context.solvers.RemoveTimeouted();
-        }
-
-        if (items[0].revents & ZMQ_POLLIN)
-        {
-            while (true)
-            {
-                frontend.recv(&message);
-                frontend.getsockopt(ZMQ_RCVMORE, &more, &more_size);
-                if (proxy.send(message, more ? ZMQ_SNDMORE : 0) == 0)
+                catch (std::exception& e)
                 {
-                    //add new proxy
-                    proxies.emplace_back(new Proxy(&service_context, &config));
-                    if (proxy.send(message, more ? ZMQ_SNDMORE : 0) == 0)
-                    {
-                        logger->Error("Error sending message");
-                    }
+                    logger->Error("Error: {}", e.what());
                 }
-                if (!more)
-                    break;
             }
-        }
+        });
 
-        if (items[1].revents & ZMQ_POLLIN)
+    std::vector<std::thread> v;
+    v.reserve(config.threads_count - 1);
+    for (auto i = config.threads_count - 1; i > 0; --i)
+        v.emplace_back(
+        [&ioc]
         {
-            while (true)
-            {
-                proxy.recv(&message);
-                proxy.getsockopt(ZMQ_RCVMORE, &more, &more_size);
-                frontend.send(message, more ? ZMQ_SNDMORE : 0);
-                if (!more)
-                    break;
-            }
-        }
-    }
+            ioc.run();
+        });
+    ioc.run();
 
-    logger->Info("Yutovo service end");
+    logger->Info("Yutovo service finish");
     return 0;   
 }

@@ -24,30 +24,30 @@ public:
     void Error(const char* message);
 
     template<typename... Args>
-    void Info(const char* format, Args... args)
+    void Info(fmt::format_string<Args...> format, Args... args)
     {
-        log->info(format, args...);
+        log->info(format, std::forward<Args>(args)...);
         log->flush();
     }
 
     template<typename... Args>
-    void Debug(const char* format, Args... args)
+    void Debug(fmt::format_string<Args...> format, Args... args)
     {
-        log->debug(format, args...);
+        log->debug(format, std::forward<Args>(args)...);
         log->flush();
     }
 
     template<typename... Args>
-    void Warning(const char* format, Args... args)
+    void Warning(fmt::format_string<Args...> format, Args... args)
     {
-        log->warn(format, args...);
+        log->warn(format, std::forward<Args>(args)...);
         log->flush();
     }
 
     template<typename... Args>
-    void Error(const char* format, Args... args)
+    void Error(fmt::format_string<Args...> format, Args... args)
     {
-        log->error(format, args...);
+        log->error(format, std::forward<Args>(args)...);
         log->flush();
     }
 

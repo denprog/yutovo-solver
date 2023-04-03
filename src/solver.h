@@ -1,48 +1,18 @@
 #ifndef __SOLVERS_H__
 #define __SOLVERS_H__
 
-#include <zmq.hpp>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <yutovo_calculator/parser.h>
 #include "rapidjson/document.h"
+#include "types.h"
 
 namespace yutovo_service
 {
 
 class Logger;
 class Config;
-
-enum class SolverType
-{
-    NONE = 0,
-    CALCULATOR = 1,
-    PYTHON = 2
-};
-
-//Returned result type
-enum class ResultType
-{
-	NONE = 0, 
-	REAL, 
-	INTEGER, 
-	RATIONAL, 
-	COMPLEX, 
-	AUTO
-};
-
-enum class ErrorCode
-{
-    OK = 0,
-    UNKNOWN_COMMAND,
-    JSON_ERROR, //json was not parsed
-    NO_FIELD_ERROR, //there is no field requeried
-    SOLVER_ERROR, //solver was not created or executed
-    PARSER_ERROR, //expression was not parsed
-    SOLVER_TIMEOUT_ERROR, 
-    SOLVER_RESTARTED_ERROR //all connected code blocks need to be reevaluated
-};
 
 class Solver
 {
