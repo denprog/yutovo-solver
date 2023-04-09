@@ -32,7 +32,18 @@ net::awaitable<void> DoSession(stream ws, ServiceContext* service_context, Logge
             res.set(http::field::server, std::string(BOOST_BEAST_VERSION_STRING) + " websocket-server-coro");
         }));
 
+    boost::beast::error_code ec;
+    auto remote = ws.next_layer().socket().remote_endpoint(ec);
+    std::string remote_str = remote.address().to_string() + ":" + std::to_string(remote.port());
+
     co_await ws.async_accept();
+    if (!ws.is_open())
+    {
+        logger->Error("Error accepting with {}", remote_str);
+        co_return;
+    }
+
+    logger->Info("New connection accepted with {}", remote_str);
 
     beast::flat_buffer buffer;
 
@@ -63,6 +74,7 @@ net::awaitable<void> DoSession(stream ws, ServiceContext* service_context, Logge
         {
             if (err.code() != websocket::error::closed)
                 throw;
+            co_return;
         }
     }
 }
