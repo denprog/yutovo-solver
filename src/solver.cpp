@@ -33,6 +33,21 @@ void Solver::ReplyError(const yutovo_calculator::ParserException ex, rapidjson::
     reply.AddMember("error", error, alloc);
 }
 
+void Solver::AddDependencies(rapidjson::Document& reply, const std::vector<std::u32string>& dependencies)
+{
+    if (dependencies.empty())
+        return;
+    
+    auto& alloc = reply.GetAllocator();
+    rapidjson::Value d(rapidjson::kArrayType);
+    for (auto& str : dependencies)
+    {
+        rapidjson::Value s((boost::locale::conv::utf_to_utf<char>(str)).c_str(), alloc);
+        d.PushBack(s, alloc);
+    }
+    reply.AddMember("dependencies", d, alloc);
+}
+
 //CalculatorSolver
 
 CalculatorSolver::CalculatorSolver(const std::string& _guid) :
@@ -80,6 +95,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
     ResultType result_type = (ResultType)request["result_type"].GetInt();
 
     auto& alloc = reply.GetAllocator();
+    std::vector<std::u32string> dependencies;
 
     switch (result_type)
     {
@@ -106,11 +122,12 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             try
             {
                 real_parser.SetPrecision(precision);
-                res = real_parser.Parse(expression);
+                res = real_parser.Parse(expression, dependencies);
             }
             catch (yutovo_calculator::ParserException ex)
             {
                 ReplyError(ex, reply);
+                AddDependencies(reply, dependencies);
                 break;
             }
 
@@ -132,6 +149,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                 e.SetString(exponent.c_str(), exponent.size(), alloc);
                 reply.AddMember("exponent", e, alloc);
             }
+            AddDependencies(reply, dependencies);
         }
         break;
     case ResultType::INTEGER:
@@ -143,11 +161,12 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             yutovo_calculator::Integer res;
             try
             {
-                res = integer_parser.Parse(expression);
+                res = integer_parser.Parse(expression, dependencies);
             }
             catch (yutovo_calculator::ParserException ex)
             {
                 ReplyError(ex, reply);
+                AddDependencies(reply, dependencies);
                 break;
             }
 
@@ -155,6 +174,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             rapidjson::Value val(rapidjson::kStringType);
             val.SetString(s.c_str(), s.size(), alloc);
             reply.AddMember("value", val, alloc);
+            AddDependencies(reply, dependencies);
         }
         break;
     case ResultType::RATIONAL:
@@ -162,11 +182,12 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             yutovo_calculator::Rational res;
             try
             {
-                res = rational_parser.Parse(expression);
+                res = rational_parser.Parse(expression, dependencies);
             }
             catch (yutovo_calculator::ParserException ex)
             {
                 ReplyError(ex, reply);
+                AddDependencies(reply, dependencies);
                 break;
             }
 

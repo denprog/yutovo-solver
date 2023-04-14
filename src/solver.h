@@ -25,6 +25,7 @@ public:
 protected:
     void ReplyError(const ErrorCode error_code, rapidjson::Document& reply);
     void ReplyError(const yutovo_calculator::ParserException ex, rapidjson::Document& reply);
+    void AddDependencies(rapidjson::Document& reply, const std::vector<std::u32string>& dependencies);
 
 public:
     time_t idle_time = time(nullptr);
