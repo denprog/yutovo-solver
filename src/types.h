@@ -1,6 +1,8 @@
 #ifndef __TYPES_H__
 #define __TYPES_H__
 
+#include <vector>
+
 namespace yutovo_service
 {
 
@@ -33,6 +35,8 @@ enum class ErrorCode
     OPERATION_ERROR, //there was error
     SOLVER_RESTARTED_ERROR //all connected code blocks need to be reevaluated
 };
+
+typedef std::vector<uint> ElementId;
 
 }
 

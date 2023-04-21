@@ -26,10 +26,13 @@ void Solver::ReplyError(const yutovo_calculator::ParserException ex, rapidjson::
     rapidjson::Value error;
     error.SetObject();
     auto& alloc = reply.GetAllocator();
+    error.AddMember("id", ElementIdToValue(reply, ex.id), alloc);
     error.AddMember("error_code", (int)ErrorCode::PARSER_ERROR, alloc);
-    error.AddMember("parser_error_code", ex.id, alloc);
+    error.AddMember("parser_error_code", ex.ex_id, alloc);
     error.AddMember("pos", ex.pos, alloc);
     error.AddMember("line", ex.line, alloc);
+    rapidjson::Value s((boost::locale::conv::utf_to_utf<char>(ex.description)).c_str(), alloc);
+    error.AddMember("description", s, alloc);
     reply.AddMember("error", error, alloc);
 }
 
@@ -46,6 +49,30 @@ void Solver::AddDependencies(rapidjson::Document& reply, const std::vector<std::
         d.PushBack(s, alloc);
     }
     reply.AddMember("dependencies", d, alloc);
+}
+
+bool Solver::GetElementId(const rapidjson::Document& request, ElementId& id)
+{
+    if (!request.HasMember("id") || !request["id"].IsArray())
+        return false;
+    rapidjson::GenericArray arr = request["id"].GetArray();
+    id.clear();
+    for (rapidjson::SizeType i = 0; i < arr.Size(); ++i)
+    {
+        if (!arr[i].IsInt())
+            return false;
+        id.push_back(arr[i].GetInt());
+    }
+    return true;
+}
+
+rapidjson::Value Solver::ElementIdToValue(rapidjson::Document& reply, const ElementId& id)
+{
+    auto& alloc = reply.GetAllocator();
+    rapidjson::Value d(rapidjson::kArrayType);
+    for (int i : id)
+        d.PushBack(i, alloc);
+    return d;
 }
 
 //CalculatorSolver
@@ -77,20 +104,21 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
         return;
     }
 
-    if (!request.HasMember("result_type") || !request["result_type"].IsInt())
+    if (!request.HasMember("result_type") || !request["result_type"].IsInt() || 
+        !request.HasMember("expression") || !request["expression"].IsString())
     {
         logger->Error("result_type error");
         ReplyError(ErrorCode::NO_FIELD_ERROR, reply);
         return;
     }
 
-    if (!request.HasMember("expression") || !request["expression"].IsString())
+    ElementId id;
+    if (!GetElementId(request, id))
     {
-        logger->Error("expression error");
+        logger->Error("id error");
         ReplyError(ErrorCode::NO_FIELD_ERROR, reply);
         return;
     }
-
     std::string expression = request["expression"].GetString();
     ResultType result_type = (ResultType)request["result_type"].GetInt();
 
@@ -122,7 +150,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             try
             {
                 real_parser.SetPrecision(precision);
-                res = real_parser.Parse(expression, dependencies);
+                res = real_parser.Parse(id, expression, dependencies);
             }
             catch (yutovo_calculator::ParserException ex)
             {
@@ -161,7 +189,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             yutovo_calculator::Integer res;
             try
             {
-                res = integer_parser.Parse(expression, dependencies);
+                res = integer_parser.Parse(id, expression, dependencies);
             }
             catch (yutovo_calculator::ParserException ex)
             {
@@ -182,7 +210,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             yutovo_calculator::Rational res;
             try
             {
-                res = rational_parser.Parse(expression, dependencies);
+                res = rational_parser.Parse(id, expression, dependencies);
             }
             catch (yutovo_calculator::ParserException ex)
             {
@@ -214,13 +242,17 @@ void CalculatorSolver::RemoveIdentifier(const rapidjson::Document& request, rapi
         ReplyError(ErrorCode::NO_FIELD_ERROR, reply);
         return;
     }
+
+    ElementId id;
+    if (!GetElementId(request, id))
+        return;
     std::string identifier = request["expression"].GetString();
 
     try
     {
-        real_parser.RemoveIdentifier(identifier);
-        integer_parser.RemoveIdentifier(identifier);
-        rational_parser.RemoveIdentifier(identifier);
+        real_parser.RemoveIdentifier(id, identifier);
+        integer_parser.RemoveIdentifier(id, identifier);
+        rational_parser.RemoveIdentifier(id, identifier);
     }
     catch (yutovo_calculator::ParserException ex)
     {
