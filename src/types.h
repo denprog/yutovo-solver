@@ -3,6 +3,8 @@
 
 #include <vector>
 
+typedef unsigned int uint;
+
 namespace yutovo_service
 {
 

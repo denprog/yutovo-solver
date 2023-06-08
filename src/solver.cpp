@@ -133,10 +133,6 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             if (request.HasMember("precision") && request["precision"].IsInt())
                 precision = request["precision"].GetInt();
 
-            int angle_measure = 1;
-            if (request.HasMember("angle_measure") && request["angle_measure"].IsInt())
-                angle_measure = request["angle_measure"].GetInt();
-
             int accuracy_size = 3;
             if (request.HasMember("accuracy_size") && request["accuracy_size"].IsInt())
                 accuracy_size = request["accuracy_size"].GetInt();
@@ -144,13 +140,20 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             int exponent_size = 3;
             if (request.HasMember("exponent_size") && request["exponent_size"].IsInt())
                 exponent_size = request["exponent_size"].GetInt();
-            
+
+            AngleMeasure default_angle_measure = AngleMeasure::None;
+            if (request.HasMember("default_angle_measure") && request["default_angle_measure"].IsInt())
+                default_angle_measure = (AngleMeasure)request["default_angle_measure"].GetInt();
+
+            AngleMeasure result_angle_measure = AngleMeasure::None;
+            if (request.HasMember("result_angle_measure") && request["result_angle_measure"].IsInt())
+                result_angle_measure = (AngleMeasure)request["result_angle_measure"].GetInt();
+
             yutovo_calculator::Real res;
 
             try
             {
-                real_parser.SetPrecision(precision);
-                res = real_parser.Parse(id, expression, dependencies);
+                res = real_parser.Parse(id, expression, dependencies, default_angle_measure, result_angle_measure, precision);
             }
             catch (yutovo_calculator::ParserException ex)
             {
@@ -163,7 +166,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             std::string mantissa;
             bool exponent_sign;
             std::string exponent;
-            res.ToString(accuracy_size, exponent_size, mantissa_sign, mantissa, exponent_sign, exponent);
+            res.ToString(exponent_size, accuracy_size, mantissa_sign, mantissa, exponent_sign, exponent);
             if (mantissa_sign)
                 mantissa.insert(mantissa.begin(), '-');
             rapidjson::Value m(rapidjson::kStringType);
@@ -177,6 +180,8 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                 e.SetString(exponent.c_str(), exponent.size(), alloc);
                 reply.AddMember("exponent", e, alloc);
             }
+            if (res.angle_measure != AngleMeasure::None)
+                reply.AddMember("angle_measure", (int)res.angle_measure, alloc);
             AddDependencies(reply, dependencies);
         }
         break;
