@@ -132,6 +132,8 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             int precision = 3;
             if (request.HasMember("precision") && request["precision"].IsInt())
                 precision = request["precision"].GetInt();
+            if (precision <= 0)
+                precision = 3;
 
             int accuracy_size = 3;
             if (request.HasMember("accuracy_size") && request["accuracy_size"].IsInt())
