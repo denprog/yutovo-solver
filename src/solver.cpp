@@ -113,176 +113,103 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
         return;
     }
 
-    ElementId id;
-    if (!GetElementId(request, id))
-    {
-        logger->Error("id error");
-        ReplyError(ErrorCode::NO_FIELD_ERROR, reply);
-        return;
-    }
-    std::string expression = request["expression"].GetString();
     ResultType result_type = (ResultType)request["result_type"].GetInt();
 
-    auto& alloc = reply.GetAllocator();
     std::vector<std::u32string> dependencies;
 
     switch (result_type)
     {
-    case ResultType::REAL:
+    case ResultType::AUTO:
         {
-            int precision = 3;
-            if (request.HasMember("precision") && request["precision"].IsInt())
-                precision = request["precision"].GetInt();
-            if (precision <= 0)
-                precision = 3;
-
-            int exponent_size = 3;
-            if (request.HasMember("exponent_size") && request["exponent_size"].IsInt())
-                exponent_size = request["exponent_size"].GetInt();
-
-            AngleMeasure default_angle_measure = AngleMeasure::None;
-            if (request.HasMember("default_angle_measure") && request["default_angle_measure"].IsInt())
-                default_angle_measure = (AngleMeasure)request["default_angle_measure"].GetInt();
-
-            AngleMeasure result_angle_measure = AngleMeasure::None;
-            if (request.HasMember("result_angle_measure") && request["result_angle_measure"].IsInt())
-                result_angle_measure = (AngleMeasure)request["result_angle_measure"].GetInt();
-
-            yutovo_calculator::Real res;
-
-            try
+            if (!request.HasMember("results_order") || !request["results_order"].IsArray())
             {
-                res = real_parser.Parse(id, expression, dependencies, default_angle_measure, result_angle_measure, precision);
+                logger->Error("results_order error");
+                ReplyError(ErrorCode::NO_FIELD_ERROR, reply);
+                return;
             }
-            catch (yutovo_calculator::ParserException ex)
+            std::vector<ResultType> results_order;
+            const rapidjson::Value& r = request["results_order"];
+            for (rapidjson::SizeType i = 0; i < r.Size(); i++)
             {
-                ReplyError(ex, reply);
-                AddDependencies(reply, dependencies);
-                break;
-            }
-
-            bool mantissa_sign;
-            std::string mantissa;
-            bool exponent_sign;
-            std::string exponent;
-            res.ToString(exponent_size, precision, mantissa_sign, mantissa, exponent_sign, exponent);
-            if (mantissa_sign)
-                mantissa.insert(mantissa.begin(), '-');
-            rapidjson::Value m(rapidjson::kStringType);
-            m.SetString(mantissa.c_str(), mantissa.size(), alloc);
-            reply.AddMember("mantissa", m, alloc);
-            if (exponent_sign)
-                exponent.insert(exponent.begin(), '-');
-            if (exponent != "")
-            {
-                rapidjson::Value e(rapidjson::kStringType);
-                e.SetString(exponent.c_str(), exponent.size(), alloc);
-                reply.AddMember("exponent", e, alloc);
-            }
-            if (res.angle_measure != AngleMeasure::None)
-                reply.AddMember("angle_measure", (int)res.angle_measure, alloc);
-            AddDependencies(reply, dependencies);
-        }
-        break;
-    case ResultType::INTEGER:
-        {
-            yutovo_calculator::Integer res;
-            try
-            {
-                res = integer_parser.Parse(id, expression, dependencies);
-            }
-            catch (yutovo_calculator::ParserException ex)
-            {
-                ReplyError(ex, reply);
-                AddDependencies(reply, dependencies);
-                break;
-            }
-
-            std::string s;
-            if (request.HasMember("result_notation") && request["result_notation"].IsInt())
-            {
-                Notation notation = (Notation)request["result_notation"].GetInt();
-                if ((int)notation < 0 || notation > Notation::Hexadecimal)
-                    notation = Notation::Decimal;
-                switch (notation)
+                if (!r[i].IsInt())
                 {
-                case Notation::Binary:
-                    s = res.ToStdString(2);
-                    break;
-                case Notation::Octal:
-                    s = res.ToStdString(8);
-                    break;
-                case Notation::Decimal:
-                    s = res.ToStdString(10);
-                    break;
-                case Notation::Hexadecimal:
-                    s = res.ToStdString(16);
-                    break;
+                    logger->Error("results_order error");
+                    ReplyError(ErrorCode::FIELD_ERROR, reply);
+                    return;
                 }
-                reply.AddMember("notation", (int)notation, alloc);
-            }
-            else
-            {
-                s = res.ToStdString();
-                reply.AddMember("notation", (int)Notation::Decimal, alloc);
-            }
-            
-            rapidjson::Value val(rapidjson::kStringType);
-            val.SetString(s.c_str(), s.size(), alloc);
-            reply.AddMember("value", val, alloc);
-            AddDependencies(reply, dependencies);
-        }
-        break;
-    case ResultType::RATIONAL:
-        {
-            yutovo_calculator::Rational res;
-            try
-            {
-                res = rational_parser.Parse(id, expression, dependencies);
-            }
-            catch (yutovo_calculator::ParserException ex)
-            {
-                ReplyError(ex, reply);
-                AddDependencies(reply, dependencies);
-                break;
+                results_order.push_back((ResultType)r[i].GetInt());
             }
 
-            if (request.HasMember("fraction_form") && request["fraction_form"].IsInt())
+            //try all the parsers in the requered order until one of them parses
+            rapidjson::Document error_reply;
+            error_reply.CopyFrom(reply, error_reply.GetAllocator());
+            for (size_t i = 0; i < results_order.size(); ++i)
             {
-                FractionForm form = (FractionForm)request["fraction_form"].GetInt();
-                if (form == FractionForm::Proper)
+                ResultType t = results_order[i];
+                try
                 {
-                    yutovo_calculator::Integer i, n, d;
-                    res.ToProper(i, n, d);
-
-                    if (i != 0)
+                    switch (t)
                     {
-                        std::string integer = i.ToStdString();
-                        rapidjson::Value _i(rapidjson::kStringType);
-                        _i.SetString(integer.c_str(), integer.size(), alloc);
-                        reply.AddMember("integer", _i, alloc);
+                    case ResultType::REAL:
+                        SolveReal(request, reply, dependencies);
+                        return;
+                    case ResultType::INTEGER:
+                        SolveInteger(request, reply, dependencies);
+                        return;
+                    case ResultType::RATIONAL:
+                        SolveRational(request, reply, dependencies);
+                        return;
                     }
-
-                    std::string numerator = n.ToStdString();
-                    std::string denomerator = d.ToStdString();
-                    rapidjson::Value _n(rapidjson::kStringType);
-                    _n.SetString(numerator.c_str(), numerator.size(), alloc);
-                    reply.AddMember("numerator", _n, alloc);
-                    rapidjson::Value _d(rapidjson::kStringType);
-                    _d.SetString(denomerator.c_str(), denomerator.size(), alloc);
-                    reply.AddMember("denomerator", _d, alloc);
-                    break;
+                }
+                catch (yutovo_calculator::ParserException& ex)
+                {
+                    if (i == 0)
+                    {
+                        ReplyError(ex, error_reply);
+                        AddDependencies(error_reply, dependencies);
+                    }
+                }
+                catch (ServiceException& ex)
+                {
+                    if (i == 0)
+                    {
+                        ReplyError(ex.error_code, error_reply);
+                        AddDependencies(error_reply, dependencies);
+                    }
                 }
             }
 
-            std::string numerator = res.GetNumerator().ToStdString();
-            std::string denomerator = res.GetDenomerator().ToStdString();
-            rapidjson::Value n(rapidjson::kStringType);
-            n.SetString(numerator.c_str(), numerator.size(), alloc);
-            reply.AddMember("numerator", n, alloc);
-            rapidjson::Value d(rapidjson::kStringType);
-            d.SetString(denomerator.c_str(), denomerator.size(), alloc);
-            reply.AddMember("denomerator", d, alloc);
+            //none of the parsers has parsed
+            reply.CopyFrom(error_reply, reply.GetAllocator());
+        }
+        break;
+    case ResultType::REAL:
+    case ResultType::INTEGER:
+    case ResultType::RATIONAL:
+        try
+        {
+            switch (result_type)
+            {
+            case ResultType::REAL:
+                SolveReal(request, reply, dependencies);
+                break;
+            case ResultType::INTEGER:
+                SolveInteger(request, reply, dependencies);
+                break;
+            case ResultType::RATIONAL:
+                SolveRational(request, reply, dependencies);
+                break;
+            }
+        }
+        catch (yutovo_calculator::ParserException& ex)
+        {
+            ReplyError(ex, reply);
+            AddDependencies(reply, dependencies);
+        }
+        catch (ServiceException& ex)
+        {
+            ReplyError(ex.error_code, reply);
+            AddDependencies(reply, dependencies);
         }
         break;
     }
@@ -317,6 +244,166 @@ void CalculatorSolver::RemoveIdentifier(const rapidjson::Document& request, rapi
     }
 
     ReplyError(ErrorCode::OK, reply);
+}
+
+void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies)
+{
+    ElementId id;
+    if (!GetElementId(request, id))
+    {
+        logger->Error("id error");
+        throw ServiceException{ErrorCode::NO_FIELD_ERROR};
+    }
+
+    std::string expression = request["expression"].GetString();
+    
+    int precision = 3;
+    if (request.HasMember("precision") && request["precision"].IsInt())
+        precision = request["precision"].GetInt();
+    if (precision <= 0)
+        precision = 3;
+
+    int exponent_size = 3;
+    if (request.HasMember("exponent_size") && request["exponent_size"].IsInt())
+        exponent_size = request["exponent_size"].GetInt();
+
+    AngleMeasure default_angle_measure = AngleMeasure::None;
+    if (request.HasMember("default_angle_measure") && request["default_angle_measure"].IsInt())
+        default_angle_measure = (AngleMeasure)request["default_angle_measure"].GetInt();
+
+    AngleMeasure result_angle_measure = AngleMeasure::None;
+    if (request.HasMember("result_angle_measure") && request["result_angle_measure"].IsInt())
+        result_angle_measure = (AngleMeasure)request["result_angle_measure"].GetInt();
+
+    Real res = real_parser.Parse(id, expression, dependencies, default_angle_measure, result_angle_measure, precision);
+
+    bool mantissa_sign;
+    std::string mantissa;
+    bool exponent_sign;
+    std::string exponent;
+    res.ToString(exponent_size, precision, mantissa_sign, mantissa, exponent_sign, exponent);
+    if (mantissa_sign)
+        mantissa.insert(mantissa.begin(), '-');
+    
+    rapidjson::Value m(rapidjson::kStringType);
+    auto& alloc = reply.GetAllocator();
+    reply.AddMember("result_type", (int)ResultType::REAL, alloc);
+    m.SetString(mantissa.c_str(), mantissa.size(), alloc);
+    reply.AddMember("mantissa", m, alloc);
+    if (exponent_sign)
+        exponent.insert(exponent.begin(), '-');
+    if (exponent != "")
+    {
+        rapidjson::Value e(rapidjson::kStringType);
+        e.SetString(exponent.c_str(), exponent.size(), alloc);
+        reply.AddMember("exponent", e, alloc);
+    }
+    if (res.angle_measure != AngleMeasure::None)
+        reply.AddMember("angle_measure", (int)res.angle_measure, alloc);
+    AddDependencies(reply, dependencies);
+}
+
+void CalculatorSolver::SolveInteger(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies)
+{
+    ElementId id;
+    if (!GetElementId(request, id))
+    {
+        logger->Error("id error");
+        throw ServiceException{ErrorCode::NO_FIELD_ERROR};
+    }
+
+    std::string expression = request["expression"].GetString();
+
+    yutovo_calculator::Integer res = integer_parser.Parse(id, expression, dependencies);
+
+    auto& alloc = reply.GetAllocator();
+    reply.AddMember("result_type", (int)ResultType::INTEGER, alloc);
+    std::string s;
+    if (request.HasMember("result_notation") && request["result_notation"].IsInt())
+    {
+        Notation notation = (Notation)request["result_notation"].GetInt();
+        if ((int)notation < 0 || notation > Notation::Hexadecimal)
+            notation = Notation::Decimal;
+        switch (notation)
+        {
+        case Notation::Binary:
+            s = res.ToStdString(2);
+            break;
+        case Notation::Octal:
+            s = res.ToStdString(8);
+            break;
+        case Notation::Decimal:
+            s = res.ToStdString(10);
+            break;
+        case Notation::Hexadecimal:
+            s = res.ToStdString(16);
+            break;
+        }
+        reply.AddMember("notation", (int)notation, alloc);
+    }
+    else
+    {
+        s = res.ToStdString();
+        reply.AddMember("notation", (int)Notation::Decimal, alloc);
+    }
+    
+    rapidjson::Value val(rapidjson::kStringType);
+    val.SetString(s.c_str(), s.size(), alloc);
+    reply.AddMember("value", val, alloc);
+    AddDependencies(reply, dependencies);
+}
+
+void CalculatorSolver::SolveRational(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies)
+{
+    ElementId id;
+    if (!GetElementId(request, id))
+    {
+        logger->Error("id error");
+        throw ServiceException{ErrorCode::NO_FIELD_ERROR};
+    }
+
+    std::string expression = request["expression"].GetString();
+
+    yutovo_calculator::Rational res = rational_parser.Parse(id, expression, dependencies);
+
+    auto& alloc = reply.GetAllocator();
+    reply.AddMember("result_type", (int)ResultType::RATIONAL, alloc);
+    if (request.HasMember("fraction_form") && request["fraction_form"].IsInt())
+    {
+        FractionForm form = (FractionForm)request["fraction_form"].GetInt();
+        if (form == FractionForm::Proper)
+        {
+            yutovo_calculator::Integer i, n, d;
+            res.ToProper(i, n, d);
+
+            if (i != 0)
+            {
+                std::string integer = i.ToStdString();
+                rapidjson::Value _i(rapidjson::kStringType);
+                _i.SetString(integer.c_str(), integer.size(), alloc);
+                reply.AddMember("integer", _i, alloc);
+            }
+
+            std::string numerator = n.ToStdString();
+            std::string denomerator = d.ToStdString();
+            rapidjson::Value _n(rapidjson::kStringType);
+            _n.SetString(numerator.c_str(), numerator.size(), alloc);
+            reply.AddMember("numerator", _n, alloc);
+            rapidjson::Value _d(rapidjson::kStringType);
+            _d.SetString(denomerator.c_str(), denomerator.size(), alloc);
+            reply.AddMember("denomerator", _d, alloc);
+            return;
+        }
+    }
+
+    std::string numerator = res.GetNumerator().ToStdString();
+    std::string denomerator = res.GetDenomerator().ToStdString();
+    rapidjson::Value n(rapidjson::kStringType);
+    n.SetString(numerator.c_str(), numerator.size(), alloc);
+    reply.AddMember("numerator", n, alloc);
+    rapidjson::Value d(rapidjson::kStringType);
+    d.SetString(denomerator.c_str(), denomerator.size(), alloc);
+    reply.AddMember("denomerator", d, alloc);
 }
 
 //PythonSolver

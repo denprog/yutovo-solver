@@ -32,10 +32,16 @@ enum class ErrorCode
     UNKNOWN_COMMAND,
     JSON_ERROR, //json was not parsed
     NO_FIELD_ERROR, //there is no field requeried
+    FIELD_ERROR, //a field is wrong
     SOLVER_ERROR, //solver was not created or executed
     PARSER_ERROR, //expression was not parsed
     OPERATION_ERROR, //there was error
     SOLVER_RESTARTED_ERROR //all connected code blocks need to be reevaluated
+};
+
+struct ServiceException
+{
+    ErrorCode error_code;
 };
 
 typedef std::vector<uint> ElementId;

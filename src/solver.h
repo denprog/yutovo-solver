@@ -14,6 +14,8 @@ namespace yutovo_service
 class Logger;
 class Config;
 
+using namespace yutovo_calculator;
+
 class Solver
 {
 public:
@@ -47,6 +49,11 @@ public:
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply);
+
+private:
+    void SolveReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies);
+    void SolveInteger(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies);
+    void SolveRational(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies);
 
 private:
     yutovo_calculator::Parser<yutovo_calculator::Real> real_parser;
