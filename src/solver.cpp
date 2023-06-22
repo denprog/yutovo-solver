@@ -37,6 +37,25 @@ void Solver::ReplyError(const yutovo_calculator::ParserException ex, rapidjson::
     reply.AddMember("error", error, alloc);
 }
 
+void Solver::AddUnit(rapidjson::Document& reply, const Unit& unit)
+{
+    if (unit.IsEmpty())
+        return;
+
+    auto& alloc = reply.GetAllocator();
+    rapidjson::Value d(rapidjson::kArrayType);
+    for (auto& u : unit.unit)
+    {
+        rapidjson::Value _u;
+        _u.SetObject();
+        rapidjson::Value s((boost::locale::conv::utf_to_utf<char>(u.first)).c_str(), alloc);
+        _u.AddMember("name", s, alloc);
+        _u.AddMember("power", u.second, alloc);
+        d.PushBack(_u, alloc);
+    }
+    reply.AddMember("unit", d, alloc);
+}
+
 void Solver::AddDependencies(rapidjson::Document& reply, const std::vector<std::u32string>& dependencies)
 {
     if (dependencies.empty())
@@ -275,6 +294,7 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
     if (request.HasMember("result_angle_measure") && request["result_angle_measure"].IsInt())
         result_angle_measure = (AngleMeasure)request["result_angle_measure"].GetInt();
 
+    //solving
     Real res = real_parser.Parse(id, expression, dependencies, default_angle_measure, result_angle_measure, precision);
 
     bool mantissa_sign;
@@ -298,6 +318,9 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
         e.SetString(exponent.c_str(), exponent.size(), alloc);
         reply.AddMember("exponent", e, alloc);
     }
+
+    AddUnit(reply, res.unit);
+
     if (res.angle_measure != AngleMeasure::None)
         reply.AddMember("angle_measure", (int)res.angle_measure, alloc);
     AddDependencies(reply, dependencies);
