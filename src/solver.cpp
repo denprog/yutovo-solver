@@ -43,6 +43,8 @@ void Solver::AddUnit(rapidjson::Document& reply, const Unit& unit)
         return;
 
     auto& alloc = reply.GetAllocator();
+    rapidjson::Value _unit;
+    _unit.SetObject();
     rapidjson::Value d(rapidjson::kArrayType);
     for (auto& u : unit.unit)
     {
@@ -50,10 +52,65 @@ void Solver::AddUnit(rapidjson::Document& reply, const Unit& unit)
         _u.SetObject();
         rapidjson::Value s((boost::locale::conv::utf_to_utf<char>(u.first)).c_str(), alloc);
         _u.AddMember("name", s, alloc);
-        _u.AddMember("power", u.second, alloc);
+        if (u.second != 1)
+            _u.AddMember("power", u.second, alloc);
         d.PushBack(_u, alloc);
     }
-    reply.AddMember("unit", d, alloc);
+    if (unit.system != U"")
+    {
+        rapidjson::Value s((boost::locale::conv::utf_to_utf<char>(unit.system)).c_str(), alloc);
+        _unit.AddMember("system", s, alloc);
+    }
+    _unit.AddMember("value", d, alloc);
+    reply.AddMember("unit", _unit, alloc);
+}
+
+void Solver::AddCastUnits(rapidjson::Document& reply, const std::vector<Unit>& cast_units)
+{
+    if (cast_units.empty())
+        return;
+    
+    //sort the cast units by those systems
+    std::map<std::u32string, std::vector<Unit>> system_units;
+    for (const Unit& unit : cast_units)
+    {
+        if (unit.system == U"")
+            system_units[U"SI"].push_back(unit);
+        else
+            system_units[unit.system].push_back(unit);
+    }
+
+    //make json arrays
+    auto& alloc = reply.GetAllocator();
+    rapidjson::Value systems(rapidjson::kArrayType);
+    for (auto& s : system_units)
+    {
+        rapidjson::Value system;
+        system.SetObject();
+        system.AddMember("system", rapidjson::Value((boost::locale::conv::utf_to_utf<char>(s.first)).c_str(), alloc), alloc);
+
+        rapidjson::Value units(rapidjson::kArrayType);
+        for (auto& unit : s.second)
+        {
+            rapidjson::Value unit_array(rapidjson::kArrayType);
+            for (auto& u : unit.unit)
+            {
+                rapidjson::Value _u;
+                _u.SetObject();
+                rapidjson::Value s((boost::locale::conv::utf_to_utf<char>(u.first)).c_str(), alloc);
+                _u.AddMember("name", s, alloc);
+                if (u.second != 1)
+                    _u.AddMember("power", u.second, alloc);
+                unit_array.PushBack(_u, alloc);
+            }
+            units.PushBack(unit_array, alloc);
+        }
+        system.AddMember("units", units, alloc);
+
+        systems.PushBack(system, alloc);
+    }
+
+    reply.AddMember("cast_units", systems, alloc);
 }
 
 void Solver::AddDependencies(rapidjson::Document& reply, const std::vector<std::u32string>& dependencies)
@@ -295,7 +352,8 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
         result_angle_measure = (AngleMeasure)request["result_angle_measure"].GetInt();
 
     //solving
-    Real res = real_parser.Parse(id, expression, dependencies, default_angle_measure, result_angle_measure, precision);
+    Real si_res = real_parser.Parse(id, expression, dependencies, default_angle_measure, result_angle_measure, precision);
+    Real res = real_parser.GetSuitableUnit(id, si_res);
 
     bool mantissa_sign;
     std::string mantissa;
@@ -320,6 +378,13 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
     }
 
     AddUnit(reply, res.unit);
+
+    if (!si_res.unit.IsEmpty())
+    {
+        std::vector<Unit> cast_units;
+        real_parser.GetCastUnits(id, si_res, cast_units);
+        AddCastUnits(reply, cast_units);
+    }
 
     if (res.angle_measure != AngleMeasure::None)
         reply.AddMember("angle_measure", (int)res.angle_measure, alloc);
@@ -373,6 +438,7 @@ void CalculatorSolver::SolveInteger(const rapidjson::Document& request, rapidjso
     rapidjson::Value val(rapidjson::kStringType);
     val.SetString(s.c_str(), s.size(), alloc);
     reply.AddMember("value", val, alloc);
+
     AddDependencies(reply, dependencies);
 }
 
@@ -387,46 +453,59 @@ void CalculatorSolver::SolveRational(const rapidjson::Document& request, rapidjs
 
     std::string expression = request["expression"].GetString();
 
-    yutovo_calculator::Rational res = rational_parser.Parse(id, expression, dependencies);
+    Rational si_res = rational_parser.Parse(id, expression, dependencies);
+    Rational res = rational_parser.GetSuitableUnit(id, si_res);
 
     auto& alloc = reply.GetAllocator();
     reply.AddMember("result_type", (int)ResultType::RATIONAL, alloc);
+    FractionForm form = FractionForm::Improper;
     if (request.HasMember("fraction_form") && request["fraction_form"].IsInt())
+        form = (FractionForm)request["fraction_form"].GetInt();
+
+    if (form == FractionForm::Proper)
     {
-        FractionForm form = (FractionForm)request["fraction_form"].GetInt();
-        if (form == FractionForm::Proper)
+        yutovo_calculator::Integer i, n, d;
+        res.ToProper(i, n, d);
+
+        if (i != 0)
         {
-            yutovo_calculator::Integer i, n, d;
-            res.ToProper(i, n, d);
-
-            if (i != 0)
-            {
-                std::string integer = i.ToStdString();
-                rapidjson::Value _i(rapidjson::kStringType);
-                _i.SetString(integer.c_str(), integer.size(), alloc);
-                reply.AddMember("integer", _i, alloc);
-            }
-
-            std::string numerator = n.ToStdString();
-            std::string denomerator = d.ToStdString();
-            rapidjson::Value _n(rapidjson::kStringType);
-            _n.SetString(numerator.c_str(), numerator.size(), alloc);
-            reply.AddMember("numerator", _n, alloc);
-            rapidjson::Value _d(rapidjson::kStringType);
-            _d.SetString(denomerator.c_str(), denomerator.size(), alloc);
-            reply.AddMember("denomerator", _d, alloc);
-            return;
+            std::string integer = i.ToStdString();
+            rapidjson::Value _i(rapidjson::kStringType);
+            _i.SetString(integer.c_str(), integer.size(), alloc);
+            reply.AddMember("integer", _i, alloc);
         }
+
+        std::string numerator = n.ToStdString();
+        std::string denomerator = d.ToStdString();
+        rapidjson::Value _n(rapidjson::kStringType);
+        _n.SetString(numerator.c_str(), numerator.size(), alloc);
+        reply.AddMember("numerator", _n, alloc);
+        rapidjson::Value _d(rapidjson::kStringType);
+        _d.SetString(denomerator.c_str(), denomerator.size(), alloc);
+        reply.AddMember("denomerator", _d, alloc);
+    }
+    else
+    {
+        std::string numerator = res.GetNumerator().ToStdString();
+        std::string denomerator = res.GetDenomerator().ToStdString();
+        rapidjson::Value n(rapidjson::kStringType);
+        n.SetString(numerator.c_str(), numerator.size(), alloc);
+        reply.AddMember("numerator", n, alloc);
+        rapidjson::Value d(rapidjson::kStringType);
+        d.SetString(denomerator.c_str(), denomerator.size(), alloc);
+        reply.AddMember("denomerator", d, alloc);
     }
 
-    std::string numerator = res.GetNumerator().ToStdString();
-    std::string denomerator = res.GetDenomerator().ToStdString();
-    rapidjson::Value n(rapidjson::kStringType);
-    n.SetString(numerator.c_str(), numerator.size(), alloc);
-    reply.AddMember("numerator", n, alloc);
-    rapidjson::Value d(rapidjson::kStringType);
-    d.SetString(denomerator.c_str(), denomerator.size(), alloc);
-    reply.AddMember("denomerator", d, alloc);
+    AddUnit(reply, res.unit);
+
+    if (!si_res.unit.IsEmpty())
+    {
+        std::vector<Unit> cast_units;
+        rational_parser.GetCastUnits(id, si_res, cast_units);
+        AddCastUnits(reply, cast_units);
+    }
+
+    AddDependencies(reply, dependencies);
 }
 
 //PythonSolver

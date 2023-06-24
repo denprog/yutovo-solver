@@ -29,6 +29,7 @@ protected:
     void ReplyError(const yutovo_calculator::ParserException ex, rapidjson::Document& reply);
 
     void AddUnit(rapidjson::Document& reply, const Unit& unit);
+    void AddCastUnits(rapidjson::Document& reply, const std::vector<Unit>& cast_units);
     void AddDependencies(rapidjson::Document& reply, const std::vector<std::u32string>& dependencies);
 
     bool GetElementId(const rapidjson::Document& request, ElementId& id);
