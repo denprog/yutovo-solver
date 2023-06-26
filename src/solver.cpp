@@ -152,6 +152,34 @@ rapidjson::Value Solver::ElementIdToValue(rapidjson::Document& reply, const Elem
     return d;
 }
 
+bool Solver::GetUnit(const rapidjson::Document& request, Unit& unit)
+{
+    if (!request.HasMember("unit") || !request["unit"].IsObject())
+        return false;
+    
+    rapidjson::Value _unit = ((rapidjson::Document&)request)["unit"].GetObject();
+    if (!_unit.HasMember("value") || !_unit["value"].IsArray())
+        return false;
+    if (_unit.HasMember("system"))
+        unit.system = ToUtfString(_unit["system"].GetString());
+    rapidjson::GenericArray arr = _unit["value"].GetArray();
+    for (rapidjson::SizeType i = 0; i < arr.Size(); ++i)
+    {
+        if (!arr[i].IsObject())
+            return false;
+        rapidjson::Value u = arr[i].GetObject();
+        std::u32string name;
+        int power = 1;
+        if (!u.HasMember("name") || !u["name"].IsString())
+            return false;
+        name = ToUtfString(u["name"].GetString());
+        if (u.HasMember("power") && u["power"].IsInt())
+            power = u["power"].GetInt();
+        unit.unit.push_back(std::make_pair(name, power));
+    }
+    return true;
+}
+
 //CalculatorSolver
 
 CalculatorSolver::CalculatorSolver(const std::string& _guid) :
@@ -353,7 +381,13 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
 
     //solving
     Real si_res = real_parser.Parse(id, expression, dependencies, default_angle_measure, result_angle_measure, precision);
-    Real res = real_parser.GetSuitableUnit(id, si_res);
+    Real res;
+
+    Unit unit;
+    if (GetUnit(request, unit))
+        res = real_parser.CastToUnit(id, si_res, unit);
+    else
+        res = real_parser.GetSuitableUnit(id, si_res);
 
     bool mantissa_sign;
     std::string mantissa;
@@ -454,7 +488,13 @@ void CalculatorSolver::SolveRational(const rapidjson::Document& request, rapidjs
     std::string expression = request["expression"].GetString();
 
     Rational si_res = rational_parser.Parse(id, expression, dependencies);
-    Rational res = rational_parser.GetSuitableUnit(id, si_res);
+    Rational res;
+
+    Unit unit;
+    if (GetUnit(request, unit))
+        res = rational_parser.CastToUnit(id, si_res, unit);
+    else
+        res = rational_parser.GetSuitableUnit(id, si_res);
 
     auto& alloc = reply.GetAllocator();
     reply.AddMember("result_type", (int)ResultType::RATIONAL, alloc);

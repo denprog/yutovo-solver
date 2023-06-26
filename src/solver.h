@@ -35,6 +35,8 @@ protected:
     bool GetElementId(const rapidjson::Document& request, ElementId& id);
     rapidjson::Value ElementIdToValue(rapidjson::Document& reply, const ElementId& id);
 
+    bool GetUnit(const rapidjson::Document& request, Unit& unit);
+
 public:
     time_t idle_time = time(nullptr);
 
