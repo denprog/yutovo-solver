@@ -225,23 +225,28 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
     {
     case ResultType::AUTO:
         {
+            std::vector<ResultType> results_order;
+            bool exit_on_success = true;
             if (!request.HasMember("results_order") || !request["results_order"].IsArray())
             {
-                logger->Error("results_order error");
-                ReplyError(ErrorCode::NO_FIELD_ERROR, reply);
-                return;
+                results_order.push_back(ResultType::REAL);
+                results_order.push_back(ResultType::INTEGER);
+                results_order.push_back(ResultType::RATIONAL);
+                exit_on_success = false;
             }
-            std::vector<ResultType> results_order;
-            const rapidjson::Value& r = request["results_order"];
-            for (rapidjson::SizeType i = 0; i < r.Size(); i++)
+            else
             {
-                if (!r[i].IsInt())
+                const rapidjson::Value& r = request["results_order"];
+                for (rapidjson::SizeType i = 0; i < r.Size(); i++)
                 {
-                    logger->Error("results_order error");
-                    ReplyError(ErrorCode::FIELD_ERROR, reply);
-                    return;
+                    if (!r[i].IsInt())
+                    {
+                        logger->Error("results_order error");
+                        ReplyError(ErrorCode::FIELD_ERROR, reply);
+                        return;
+                    }
+                    results_order.push_back((ResultType)r[i].GetInt());
                 }
-                results_order.push_back((ResultType)r[i].GetInt());
             }
 
             //try all the parsers in the requered order until one of them parses
@@ -256,13 +261,19 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                     {
                     case ResultType::REAL:
                         SolveReal(request, reply, dependencies);
-                        return;
+                        if (exit_on_success)
+                            return;
+                        break;
                     case ResultType::INTEGER:
                         SolveInteger(request, reply, dependencies);
-                        return;
+                        if (exit_on_success)
+                            return;
+                        break;
                     case ResultType::RATIONAL:
                         SolveRational(request, reply, dependencies);
-                        return;
+                        if (exit_on_success)
+                            return;
+                        break;
                     }
                 }
                 catch (yutovo_calculator::ParserException& ex)
