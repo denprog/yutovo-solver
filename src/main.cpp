@@ -96,7 +96,8 @@ net::awaitable<void> DoListen(tcp::endpoint end_point, ServiceContext* service_c
             {
                 try
                 {
-                    std::rethrow_exception(ex);
+                    if (ex)
+                        std::rethrow_exception(ex);
                 }
                 catch (std::exception& e)
                 {
