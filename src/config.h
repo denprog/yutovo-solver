@@ -2,11 +2,12 @@
 #define __CONFIG_H__
 
 #include <string>
+#include <yutovo_logger/logger.h>
 
 namespace yutovo_service
 {
 
-class Logger;
+using namespace yutovo;
 
 class Config
 {

@@ -5,13 +5,15 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include "types.h"
+#include <yutovo_logger/logger.h>
 
 namespace yutovo_service
 {
 
-class Logger;
 class ServiceContext;
 class Config;
+
+using namespace yutovo;
 
 class Session
 {

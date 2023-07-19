@@ -2,7 +2,7 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include "config.h"
-#include "logger.h"
+#include <yutovo_logger/logger.h>
 #include "service_context.h"
 #include "session.h"
 #include <boost/beast/core.hpp>

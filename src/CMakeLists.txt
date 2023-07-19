@@ -7,12 +7,12 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 find_package(PkgConfig REQUIRED)
 find_package(yutovo_calculator REQUIRED PATHS ${INSTALL_PATH}/cmake/)
+find_package(yutovo_logger REQUIRED PATHS ${INSTALL_PATH}/lib/cmake/)
 
 add_executable(${PROJECT_NAME}
     main.cpp
     session.cpp
     solver.cpp
-    logger.cpp
     config.cpp
 )
 
@@ -23,6 +23,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     stdc++fs
     pthread
     yutovo_calculator
+    yutovo_logger
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC

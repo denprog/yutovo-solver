@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <yutovo_logger/logger.h>
 #include <yutovo_calculator/parser.h>
 #include "rapidjson/document.h"
 #include "types.h"
@@ -11,10 +12,10 @@
 namespace yutovo_service
 {
 
-class Logger;
 class Config;
 
 using namespace yutovo_calculator;
+using namespace yutovo;
 
 class Solver
 {

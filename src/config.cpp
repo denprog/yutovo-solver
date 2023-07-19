@@ -1,5 +1,4 @@
 #include "config.h"
-#include "logger.h"
 #include <boost/property_tree/ini_parser.hpp>
 
 namespace yutovo_service
