@@ -7,10 +7,18 @@ namespace yutovo_service
 
 //Session
 
+int Session::sessions_count = 0;
+
 Session::Session(ServiceContext* _service_context, Logger* _logger) :
     service_context(_service_context),
     logger(_logger)
 {
+    logger->Info("Sessions count: {}", ++sessions_count);
+}
+
+Session::~Session()
+{
+    logger->Info("Sessions count: {}", --sessions_count);
 }
 
 void Session::Parse(const std::string& json, std::string& reply)

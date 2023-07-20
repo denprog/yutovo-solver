@@ -19,6 +19,7 @@ class Session
 {
 public:
     Session(ServiceContext* _service_context, Logger* _logger);
+    ~Session();
 
     void Parse(const std::string& json, std::string& reply);
 
@@ -30,6 +31,7 @@ private:
 private:
     ServiceContext* service_context;
     Logger* logger;
+    static int sessions_count;
 };
 
 }
