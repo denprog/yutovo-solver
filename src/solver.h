@@ -24,6 +24,7 @@ public:
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
+    virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
 
 protected:
     void ReplyError(const ErrorCode error_code, rapidjson::Document& reply);
@@ -55,6 +56,7 @@ public:
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply);
+    virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
 
 private:
     void SolveReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies);
@@ -79,6 +81,7 @@ public:
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply);
+    virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
 
 private:
     Logger* logger;

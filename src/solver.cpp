@@ -360,6 +360,82 @@ void CalculatorSolver::RemoveIdentifier(const rapidjson::Document& request, rapi
     ReplyError(ErrorCode::OK, reply);
 }
 
+void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply)
+{
+    idle_time = time(nullptr);
+
+    //collect all the identifiers from all the parsers
+    std::vector<std::u32string> builtin_functions, user_functions, builtin_variables, user_variables;
+    real_parser.ListBuiltinFunctions(builtin_functions);
+    real_parser.ListUserFunctions(user_functions);
+    real_parser.ListBuiltinVariables(builtin_variables);
+    real_parser.ListUserVariables(user_variables);
+
+    integer_parser.ListBuiltinFunctions(builtin_functions);
+    integer_parser.ListUserFunctions(user_functions);
+    integer_parser.ListBuiltinVariables(builtin_variables);
+    integer_parser.ListUserVariables(user_variables);
+
+    rational_parser.ListBuiltinFunctions(builtin_functions);
+    rational_parser.ListUserFunctions(user_functions);
+    rational_parser.ListBuiltinVariables(builtin_variables);
+    rational_parser.ListUserVariables(user_variables);
+
+    //remove duplicates
+    std::sort(builtin_functions.begin(), builtin_functions.end());
+    builtin_functions.erase(std::unique(builtin_functions.begin(), builtin_functions.end()), builtin_functions.end());
+
+    std::sort(user_functions.begin(), user_functions.end());
+    user_functions.erase(std::unique(user_functions.begin(), user_functions.end()), user_functions.end());
+
+    std::sort(builtin_variables.begin(), builtin_variables.end());
+    builtin_variables.erase(std::unique(builtin_variables.begin(), builtin_variables.end()), builtin_variables.end());
+
+    std::sort(user_variables.begin(), user_variables.end());
+    user_variables.erase(std::unique(user_variables.begin(), user_variables.end()), user_variables.end());
+
+    auto& alloc = reply.GetAllocator();
+    rapidjson::Value builtin_functions_arr(rapidjson::kArrayType);
+    for (auto& f : builtin_functions)
+    {
+        rapidjson::Value func;
+        func.SetObject();
+        func.AddMember("name", rapidjson::Value((boost::locale::conv::utf_to_utf<char>(f)).c_str(), alloc), alloc);
+        builtin_functions_arr.PushBack(func, alloc);
+    }
+    reply.AddMember("builtin_functions", builtin_functions_arr, alloc);
+
+    rapidjson::Value user_functions_arr(rapidjson::kArrayType);
+    for (auto& f : user_functions)
+    {
+        rapidjson::Value func;
+        func.SetObject();
+        func.AddMember("name", rapidjson::Value((boost::locale::conv::utf_to_utf<char>(f)).c_str(), alloc), alloc);
+        builtin_functions_arr.PushBack(func, alloc);
+    }
+    reply.AddMember("user_functions", user_functions_arr, alloc);
+
+    rapidjson::Value builtin_variables_arr(rapidjson::kArrayType);
+    for (auto& u : builtin_variables)
+    {
+        rapidjson::Value var;
+        var.SetObject();
+        var.AddMember("name", rapidjson::Value((boost::locale::conv::utf_to_utf<char>(u)).c_str(), alloc), alloc);
+        builtin_variables_arr.PushBack(var, alloc);
+    }
+    reply.AddMember("builtin_variables", builtin_variables_arr, alloc);
+
+    rapidjson::Value user_variables_arr(rapidjson::kArrayType);
+    for (auto& u : user_variables)
+    {
+        rapidjson::Value var;
+        var.SetObject();
+        var.AddMember("name", rapidjson::Value((boost::locale::conv::utf_to_utf<char>(u)).c_str(), alloc), alloc);
+        user_variables_arr.PushBack(var, alloc);
+    }
+    reply.AddMember("user_variables", user_variables_arr, alloc);
+}
+
 void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies)
 {
     ElementId id;
@@ -580,6 +656,10 @@ void PythonSolver::Solve(const rapidjson::Document& request, rapidjson::Document
 void PythonSolver::RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply)
 {
     idle_time = time(nullptr);
+}
+
+void PythonSolver::ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply)
+{
 }
 
 //Solvers
