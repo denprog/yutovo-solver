@@ -21,7 +21,7 @@ void Solver::ReplyError(const ErrorCode error_code, rapidjson::Document& reply)
     reply.AddMember("error", error, alloc);
 }
 
-void Solver::ReplyError(const yutovo_calculator::ParserException ex, rapidjson::Document& reply)
+void Solver::ReplyError(const yutovo_calculator::ParserException& ex, rapidjson::Document& reply)
 {
     rapidjson::Value error;
     error.SetObject();
