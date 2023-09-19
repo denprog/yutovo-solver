@@ -521,8 +521,12 @@ void CalculatorSolver::SolveInteger(const rapidjson::Document& request, rapidjso
     }
 
     std::string expression = request["expression"].GetString();
+    Notation default_notation = Notation::Decimal;
 
-    yutovo_calculator::Integer res = integer_parser.Parse(id, expression, dependencies);
+    if (request.HasMember("default_notation") && request["default_notation"].IsInt())
+        default_notation = (Notation)request["default_notation"].GetInt();
+
+    yutovo_calculator::Integer res = integer_parser.Parse(id, expression, dependencies, default_notation);
 
     auto& alloc = reply.GetAllocator();
     reply.AddMember("result_type", (int)ResultType::INTEGER, alloc);
