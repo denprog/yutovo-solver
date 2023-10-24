@@ -20,11 +20,12 @@ using namespace yutovo;
 class Solver
 {
 public:
-    Solver(const std::string& _guid);
+    Solver(const std::string& _guid, const yutovo_calculator::Language _language);
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
+    virtual bool SetLanguage(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
 
 protected:
     void ReplyError(const ErrorCode error_code, rapidjson::Document& reply);
@@ -44,6 +45,7 @@ public:
 
 protected:
     std::string guid;
+    yutovo_calculator::Language language;
 };
 
 typedef std::shared_ptr<Solver> SolverPtr;
@@ -51,12 +53,13 @@ typedef std::shared_ptr<Solver> SolverPtr;
 class CalculatorSolver : public Solver
 {
 public:
-    CalculatorSolver(const std::string& _guid);
+    CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language);
     ~CalculatorSolver();
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
+    virtual bool SetLanguage(const rapidjson::Document& request, rapidjson::Document& reply);
 
 private:
     void SolveReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies);
@@ -76,12 +79,13 @@ private:
 class PythonSolver : public Solver
 {
 public:
-    PythonSolver(const std::string& _guid);
+    PythonSolver(const std::string& _guid, const yutovo_calculator::Language _language);
     ~PythonSolver();
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
+    virtual bool SetLanguage(const rapidjson::Document& request, rapidjson::Document& reply);
 
 private:
     Logger* logger;
@@ -93,11 +97,13 @@ public:
     Solvers(Config* _config);
 
     SolverPtr GetSolver(const std::string& solver_id, SolverType solver_type);
+    void SetLanguage(const std::string& guid, const yutovo_calculator::Language language, const rapidjson::Document& request, rapidjson::Document& reply);
     void RemoveTimeouted();
 
 private:
     std::mutex solvers_mutex;
     std::map<std::string, SolverPtr> solvers;
+    std::map<std::string, yutovo_calculator::Language> solvers_languages;
     Config* config;
 };
 

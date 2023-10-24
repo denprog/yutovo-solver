@@ -39,6 +39,7 @@ void Session::Parse(const std::string& json, std::string& reply)
 
     std::string command = request_json["command"].GetString();
     SolverPtr solver;
+    std::string guid;
 
     if (command == "EXIT")
     {
@@ -53,7 +54,7 @@ void Session::Parse(const std::string& json, std::string& reply)
             MakeError(ErrorCode::NO_FIELD_ERROR, reply);
             return;
         }
-        std::string guid = request_json["guid"].GetString();
+        guid = request_json["guid"].GetString();
 
         if (!request_json.HasMember("code_id") || !request_json["code_id"].IsInt())
         {
@@ -77,14 +78,10 @@ void Session::Parse(const std::string& json, std::string& reply)
             return;
         }
     }
-    else
-    {
-        MakeError(ErrorCode::UNKNOWN_COMMAND, reply);
-        return;
-    }
 
     rapidjson::Document response_json;
     response_json.SetObject();
+
     if (command == "SOLVE_CODE")
     {
         solver->Solve(request_json, response_json);
@@ -105,6 +102,30 @@ void Session::Parse(const std::string& json, std::string& reply)
         MakeReply(response_json, reply);
         return;
     }
+
+    if (command == "SET_LANGUAGE")
+    {
+        if (!request_json.HasMember("guid") || !request_json["guid"].IsString())
+        {
+            MakeError(ErrorCode::NO_FIELD_ERROR, reply);
+            return;
+        }
+        std::string guid = request_json["guid"].GetString();
+
+        if (!request_json.HasMember("language") || !request_json["language"].IsInt())
+        {
+            logger->Error("language error");
+            MakeError(ErrorCode::NO_FIELD_ERROR, reply);
+            return;
+        }
+        Language language = (Language)request_json["language"].GetInt();
+
+        service_context->solvers.SetLanguage(guid, language, request_json, response_json);
+        MakeReply(response_json, reply);
+        return;
+    }
+
+    MakeError(ErrorCode::UNKNOWN_COMMAND, reply);
 }
 
 void Session::MakeError(const ErrorCode error_code, std::string& reply)

@@ -7,8 +7,9 @@ namespace yutovo_service
 
 //Solver
 
-Solver::Solver(const std::string& _guid) :
-    guid(_guid)
+Solver::Solver(const std::string& _guid, const yutovo_calculator::Language _language) :
+    guid(_guid),
+    language(_language)
 {
 }
 
@@ -181,11 +182,11 @@ bool Solver::GetUnit(const rapidjson::Document& request, Unit& unit)
 
 //CalculatorSolver
 
-CalculatorSolver::CalculatorSolver(const std::string& _guid) :
-    Solver(_guid),
-    real_parser(0),
-    integer_parser(0),
-    rational_parser(0),
+CalculatorSolver::CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language) :
+    Solver(_guid, _language),
+    real_parser(0, _language),
+    integer_parser(0, _language),
+    rational_parser(0, _language),
     logger(Logger::GetInstance(std::string(std::getenv("YUTOVO_DEPLOY")) + "/log", "calculator_solver", true, true))
 {
     logger->Info("Calculator Solver started: {}", guid);
@@ -356,8 +357,6 @@ void CalculatorSolver::RemoveIdentifier(const rapidjson::Document& request, rapi
         ReplyError(ex, reply);
         return;
     }
-
-    ReplyError(ErrorCode::OK, reply);
 }
 
 void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply)
@@ -434,6 +433,34 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
         user_variables_arr.PushBack(var, alloc);
     }
     reply.AddMember("user_variables", user_variables_arr, alloc);
+}
+
+bool CalculatorSolver::SetLanguage(const rapidjson::Document& request, rapidjson::Document& reply)
+{
+    idle_time = time(nullptr);
+
+    if (!request.HasMember("language") || !request["language"].IsInt())
+    {
+        logger->Error("language error");
+        ReplyError(ErrorCode::NO_FIELD_ERROR, reply);
+        return false;
+    }
+
+    Language language = (Language)request["language"].GetInt();
+
+    try
+    {
+        real_parser.SetLanguage(language);
+        integer_parser.SetLanguage(language);
+        rational_parser.SetLanguage(language);
+    }
+    catch (yutovo_calculator::ParserException ex)
+    {
+        ReplyError(ex, reply);
+        return false;
+    }
+
+    return true;
 }
 
 void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies)
@@ -640,8 +667,8 @@ void CalculatorSolver::SolveRational(const rapidjson::Document& request, rapidjs
 
 //PythonSolver
 
-PythonSolver::PythonSolver(const std::string& _guid) :
-    Solver(_guid),
+PythonSolver::PythonSolver(const std::string& _guid, const yutovo_calculator::Language _language) :
+    Solver(_guid, _language),
     logger(Logger::GetInstance(std::string(std::getenv("YUTOVO_DEPLOY")) + "/log", "python_solver", true, true))
 {
     logger->Info("Python Solver started: {}", guid);
@@ -666,6 +693,11 @@ void PythonSolver::ListIdentifiers(const rapidjson::Document& request, rapidjson
 {
 }
 
+bool PythonSolver::SetLanguage(const rapidjson::Document& request, rapidjson::Document& reply)
+{
+    return true;
+}
+
 //Solvers
 
 Solvers::Solvers(Config* _config) :
@@ -680,11 +712,21 @@ SolverPtr Solvers::GetSolver(const std::string& solver_id, SolverType solver_typ
     if (it != solvers.end())
         return it->second;
     
+    yutovo_calculator::Language language = yutovo_calculator::Language::English;
+    for (auto& [key, value] : solvers_languages)
+    {
+        if (solver_id.starts_with(key))
+        {
+            language = value;
+            break;
+        }
+    }
+
     switch (solver_type)
     {
     case SolverType::CALCULATOR:
         {
-            SolverPtr solver(new CalculatorSolver(solver_id));
+            SolverPtr solver(new CalculatorSolver(solver_id, language));
             solvers[solver_id] = solver;
             return solver;
         }
@@ -693,6 +735,21 @@ SolverPtr Solvers::GetSolver(const std::string& solver_id, SolverType solver_typ
     }
 
     return nullptr;
+}
+
+void Solvers::SetLanguage(const std::string& guid, const yutovo_calculator::Language language, const rapidjson::Document& request, rapidjson::Document& reply)
+{
+    std::lock_guard<std::mutex> lock(solvers_mutex);
+    solvers_languages[guid] = language;
+
+    for (auto& [key, value] : solvers)
+    {
+        if (key.starts_with(guid))
+        {
+            if (!value->SetLanguage(request, reply))
+                return;
+        }
+    }
 }
 
 void Solvers::RemoveTimeouted()
