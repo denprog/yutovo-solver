@@ -364,21 +364,28 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
     idle_time = time(nullptr);
 
     //collect all the identifiers from all the parsers
-    std::vector<std::u32string> builtin_functions, user_functions, builtin_variables, user_variables;
+    std::vector<std::u32string> builtin_functions, user_functions, builtin_variables, user_variables, 
+        builtin_units, user_units;
     real_parser.ListBuiltinFunctions(builtin_functions);
     real_parser.ListUserFunctions(user_functions);
     real_parser.ListBuiltinVariables(builtin_variables);
     real_parser.ListUserVariables(user_variables);
+    real_parser.ListBuiltinUnits(builtin_units);
+    real_parser.ListUserUnits(user_units);
 
     integer_parser.ListBuiltinFunctions(builtin_functions);
     integer_parser.ListUserFunctions(user_functions);
     integer_parser.ListBuiltinVariables(builtin_variables);
     integer_parser.ListUserVariables(user_variables);
+    integer_parser.ListBuiltinUnits(builtin_units);
+    integer_parser.ListUserUnits(user_units);
 
     rational_parser.ListBuiltinFunctions(builtin_functions);
     rational_parser.ListUserFunctions(user_functions);
     rational_parser.ListBuiltinVariables(builtin_variables);
     rational_parser.ListUserVariables(user_variables);
+    rational_parser.ListBuiltinUnits(builtin_units);
+    rational_parser.ListUserUnits(user_units);
 
     //remove duplicates
     std::sort(builtin_functions.begin(), builtin_functions.end());
@@ -392,6 +399,12 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
 
     std::sort(user_variables.begin(), user_variables.end());
     user_variables.erase(std::unique(user_variables.begin(), user_variables.end()), user_variables.end());
+
+    std::sort(builtin_units.begin(), builtin_units.end());
+    builtin_units.erase(std::unique(builtin_units.begin(), builtin_units.end()), builtin_units.end());
+
+    std::sort(user_units.begin(), user_units.end());
+    user_units.erase(std::unique(user_units.begin(), user_units.end()), user_units.end());
 
     auto& alloc = reply.GetAllocator();
     rapidjson::Value builtin_functions_arr(rapidjson::kArrayType);
@@ -433,6 +446,26 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
         user_variables_arr.PushBack(var, alloc);
     }
     reply.AddMember("user_variables", user_variables_arr, alloc);
+
+    rapidjson::Value builtin_units_arr(rapidjson::kArrayType);
+    for (auto& u : builtin_units)
+    {
+        rapidjson::Value var;
+        var.SetObject();
+        var.AddMember("name", rapidjson::Value((boost::locale::conv::utf_to_utf<char>(u)).c_str(), alloc), alloc);
+        builtin_units_arr.PushBack(var, alloc);
+    }
+    reply.AddMember("builtin_units", builtin_units_arr, alloc);
+
+    rapidjson::Value user_units_arr(rapidjson::kArrayType);
+    for (auto& u : user_units)
+    {
+        rapidjson::Value var;
+        var.SetObject();
+        var.AddMember("name", rapidjson::Value((boost::locale::conv::utf_to_utf<char>(u)).c_str(), alloc), alloc);
+        user_units_arr.PushBack(var, alloc);
+    }
+    reply.AddMember("user_units", user_units_arr, alloc);
 }
 
 bool CalculatorSolver::SetLanguage(const rapidjson::Document& request, rapidjson::Document& reply)
