@@ -65,11 +65,15 @@ private:
     void SolveReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies);
     void SolveInteger(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies);
     void SolveRational(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies);
+    void SolveComplex(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies);
+
+    void AddReal(rapidjson::Document& reply, rapidjson::Value& obj, const Real& value, const int exponent_size, const int precision);
 
 private:
     yutovo_calculator::Parser<yutovo_calculator::Real> real_parser;
     yutovo_calculator::Parser<yutovo_calculator::Integer> integer_parser;
     yutovo_calculator::Parser<yutovo_calculator::Rational> rational_parser;
+    yutovo_calculator::Parser<yutovo_calculator::Complex> complex_parser;
 
     bool just_started = true;
 

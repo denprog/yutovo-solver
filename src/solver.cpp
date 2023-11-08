@@ -187,6 +187,7 @@ CalculatorSolver::CalculatorSolver(const std::string& _guid, const yutovo_calcul
     real_parser(0, _language),
     integer_parser(0, _language),
     rational_parser(0, _language),
+    complex_parser(0, _language),
     logger(Logger::GetInstance(std::string(std::getenv("YUTOVO_DEPLOY")) + "/log", "calculator_solver", true, true))
 {
     logger->Info("Calculator Solver started: {}", guid);
@@ -232,6 +233,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                 results_order.push_back(ResultType::REAL);
                 results_order.push_back(ResultType::INTEGER);
                 results_order.push_back(ResultType::RATIONAL);
+                results_order.push_back(ResultType::COMPLEX);
                 exit_on_success = false;
             }
             else
@@ -274,6 +276,11 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                         if (exit_on_success)
                             return;
                         break;
+                    case ResultType::COMPLEX:
+                        SolveComplex(request, reply, dependencies);
+                        if (exit_on_success)
+                            return;
+                        break;
                     }
                 }
                 catch (yutovo_calculator::ParserException& ex)
@@ -301,6 +308,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
     case ResultType::REAL:
     case ResultType::INTEGER:
     case ResultType::RATIONAL:
+    case ResultType::COMPLEX:
         try
         {
             switch (result_type)
@@ -313,6 +321,9 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                 break;
             case ResultType::RATIONAL:
                 SolveRational(request, reply, dependencies);
+                break;
+            case ResultType::COMPLEX:
+                SolveComplex(request, reply, dependencies);
                 break;
             }
         }
@@ -351,6 +362,7 @@ void CalculatorSolver::RemoveIdentifier(const rapidjson::Document& request, rapi
         real_parser.RemoveIdentifier(id, identifier);
         integer_parser.RemoveIdentifier(id, identifier);
         rational_parser.RemoveIdentifier(id, identifier);
+        complex_parser.RemoveIdentifier(id, identifier);
     }
     catch (yutovo_calculator::ParserException ex)
     {
@@ -377,8 +389,6 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
     integer_parser.ListUserFunctions(user_functions);
     integer_parser.ListBuiltinVariables(builtin_variables);
     integer_parser.ListUserVariables(user_variables);
-    integer_parser.ListBuiltinUnits(builtin_units);
-    integer_parser.ListUserUnits(user_units);
 
     rational_parser.ListBuiltinFunctions(builtin_functions);
     rational_parser.ListUserFunctions(user_functions);
@@ -386,6 +396,11 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
     rational_parser.ListUserVariables(user_variables);
     rational_parser.ListBuiltinUnits(builtin_units);
     rational_parser.ListUserUnits(user_units);
+
+    complex_parser.ListBuiltinFunctions(builtin_functions);
+    complex_parser.ListUserFunctions(user_functions);
+    complex_parser.ListBuiltinVariables(builtin_variables);
+    complex_parser.ListUserVariables(user_variables);
 
     //remove duplicates
     std::sort(builtin_functions.begin(), builtin_functions.end());
@@ -696,6 +711,106 @@ void CalculatorSolver::SolveRational(const rapidjson::Document& request, rapidjs
     }
 
     AddDependencies(reply, dependencies);
+}
+
+void CalculatorSolver::SolveComplex(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies)
+{
+    ElementId id;
+    if (!GetElementId(request, id))
+    {
+        logger->Error("id error");
+        throw ServiceException{ErrorCode::NO_FIELD_ERROR};
+    }
+
+    std::string expression = request["expression"].GetString();
+    
+    int precision = 3;
+    if (request.HasMember("precision") && request["precision"].IsInt())
+        precision = request["precision"].GetInt();
+    if (precision <= 0)
+        precision = 3;
+
+    int exponent_size = 3;
+    if (request.HasMember("exponent_size") && request["exponent_size"].IsInt())
+        exponent_size = request["exponent_size"].GetInt();
+
+    AngleMeasure default_angle_measure = AngleMeasure::None;
+    if (request.HasMember("default_angle_measure") && request["default_angle_measure"].IsInt())
+        default_angle_measure = (AngleMeasure)request["default_angle_measure"].GetInt();
+
+    AngleMeasure result_angle_measure = AngleMeasure::None;
+    if (request.HasMember("result_angle_measure") && request["result_angle_measure"].IsInt())
+        result_angle_measure = (AngleMeasure)request["result_angle_measure"].GetInt();
+    
+    ComplexForm form = ComplexForm::Arithmetic;
+    if (request.HasMember("form") && request["form"].IsInt())
+        form = (ComplexForm)request["form"].GetInt();
+    
+    int max_count = 10;
+    if (request.HasMember("max_count") && request["max_count"].IsInt())
+        max_count = request["max_count"].GetInt();
+
+    //solving
+    Complex res = complex_parser.Parse(id, expression, dependencies, default_angle_measure, result_angle_measure, precision);
+
+    auto& alloc = reply.GetAllocator();
+    reply.AddMember("result_type", (int)ResultType::COMPLEX, alloc);
+
+    if (form == ComplexForm::Trigonometric || form == ComplexForm::Exponential)
+    {
+        rapidjson::Value m(rapidjson::kObjectType);
+        AddReal(reply, m, module(res), exponent_size, precision);
+        reply.AddMember("module", m, alloc);
+
+        rapidjson::Value a(rapidjson::kObjectType);
+        AddReal(reply, a, argument(res), exponent_size, precision);
+        reply.AddMember("argument", a, alloc);
+    }
+    else
+    {
+        if (res.GetRe() != 0)
+        {
+            rapidjson::Value re(rapidjson::kObjectType);
+            AddReal(reply, re, res.GetRe(), exponent_size, precision);
+            reply.AddMember("re", re, alloc);
+        }
+
+        if (res.GetIm() != 0)
+        {
+            rapidjson::Value im(rapidjson::kObjectType);
+            AddReal(reply, im, res.GetIm(), exponent_size, precision);
+            reply.AddMember("im", im, alloc);
+        }
+    }
+
+    if (res.GetAngleMeasure() != AngleMeasure::None)
+        reply.AddMember("angle_measure", (int)res.GetAngleMeasure(), alloc);
+    AddDependencies(reply, dependencies);
+}
+
+void CalculatorSolver::AddReal(rapidjson::Document& reply, rapidjson::Value& obj, const Real& value, const int exponent_size, const int precision)
+{
+    bool mantissa_sign;
+    std::string mantissa;
+    bool exponent_sign;
+    std::string exponent;
+    value.ToString(exponent_size, precision, mantissa_sign, mantissa, exponent_sign, exponent);
+    if (mantissa_sign)
+        mantissa.insert(mantissa.begin(), '-');
+    
+    auto& alloc = reply.GetAllocator();
+    rapidjson::Value m(rapidjson::kStringType);
+    m.SetString(mantissa.c_str(), mantissa.size(), alloc);
+
+    obj.AddMember("mantissa", m, alloc);
+    if (exponent_sign)
+        exponent.insert(exponent.begin(), '-');
+    if (exponent != "")
+    {
+        rapidjson::Value e(rapidjson::kStringType);
+        e.SetString(exponent.c_str(), exponent.size(), alloc);
+        obj.AddMember("exponent", e, alloc);
+    }
 }
 
 //PythonSolver
