@@ -8,6 +8,7 @@ project(yutovo_service
 add_compile_definitions(DEBUG)
 
 set(INSTALL_PATH "$ENV{YUTOVO_DEPLOY}")
+set(THIRD_PARTY_PATH "$ENV{YUTOVO_DEPLOY}/../third_party/")
 
 add_subdirectory(src)
 add_subdirectory(test)
