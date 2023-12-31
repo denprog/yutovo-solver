@@ -22,6 +22,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     stdc++
     stdc++fs
     pthread
+    ssl
+    crypto
     yutovo_calculator
     yutovo_logger
 )
@@ -60,4 +62,10 @@ install(
     FILES ${PROJECT_NAME}-config.cmake
     DESTINATION ${INSTALL_PATH}/cmake/${PROJECT_NAME}
     COMPONENT ${PROJECT_NAME}
+)
+
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../keys/yutovo_service.crt ${CMAKE_CURRENT_BINARY_DIR}/../
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../keys/yutovo_service.key ${CMAKE_CURRENT_BINARY_DIR}/../
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../keys/yutovo_service.pub ${CMAKE_CURRENT_BINARY_DIR}/../
 )
