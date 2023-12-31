@@ -61,6 +61,7 @@ if(WIN32)
     target_compile_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Debug>:/O2>)
 endif()
 
+target_compile_options(${PROJECT_NAME} PUBLIC -Wno-deprecated-declarations)
 if(WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8 /bigobj /EHsc /MP /FIwin32_prelude.h")
 else()
