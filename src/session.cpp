@@ -1,6 +1,8 @@
 #include "session.h"
 #include "solver.h"
 #include "service_context.h"
+#include <rapidjson/writer.h>
+#include <memory>
 
 namespace yutovo_service
 {
@@ -9,8 +11,9 @@ namespace yutovo_service
 
 int Session::sessions_count = 0;
 
-Session::Session(ServiceContext* _service_context, Logger* _logger) :
+Session::Session(tcp::socket&& socket, ServiceContext* _service_context, Logger* _logger) :
     service_context(_service_context),
+    ws(std::move(socket), _service_context->ssl_context),
     logger(_logger)
 {
     logger->Info("Sessions count: {}", ++sessions_count);
@@ -19,6 +22,97 @@ Session::Session(ServiceContext* _service_context, Logger* _logger) :
 Session::~Session()
 {
     logger->Info("Sessions count: {}", --sessions_count);
+}
+
+void Session::Run()
+{
+    asio::dispatch(ws.get_executor(), beast::bind_front_handler(&Session::OnRun, shared_from_this()));
+}
+
+void Session::OnRun()
+{
+    beast::get_lowest_layer(ws).expires_after(std::chrono::seconds(30));
+    ws.next_layer().async_handshake(ssl::stream_base::server, beast::bind_front_handler(&Session::OnHandshake, shared_from_this()));
+}
+
+void Session::OnHandshake(beast::error_code ec)
+{
+    if (ec)
+    {
+        logger->Error("OnHandshake error: {}", ec.message());
+        return;
+    }
+
+    beast::get_lowest_layer(ws).expires_never();
+    ws.set_option(websocket::stream_base::timeout::suggested(beast::role_type::server));
+    ws.set_option(websocket::stream_base::decorator(
+        [](websocket::response_type& res)
+        {
+            res.set(http::field::server, std::string(BOOST_BEAST_VERSION_STRING) + " websocket-server-async-ssl");
+        }));
+
+    ws.async_accept(beast::bind_front_handler(&Session::OnAccept, shared_from_this()));
+}
+
+void Session::OnAccept(beast::error_code ec)
+{
+    if (ec)
+    {
+        logger->Error("OnAccept error: {}", ec.message());
+        return;
+    }
+
+    DoRead();
+}
+
+void Session::DoRead()
+{
+    ws.async_read(buffer, beast::bind_front_handler(&Session::OnRead, shared_from_this()));
+}
+
+void Session::OnRead(beast::error_code ec, std::size_t bytes_transferred)
+{
+    boost::ignore_unused(bytes_transferred);
+
+    if (ec == websocket::error::closed)
+        return;
+
+    if (ec)
+    {
+        logger->Error("OnRead error: {}", ec.message());
+        return;
+    }
+
+    if (!ws.got_text())
+        return;
+
+    std::string json = beast::buffers_to_string(buffer.data());
+    logger->Info("Request received:\n{}", json);
+
+    buffer.clear();
+
+    Parse(json, reply);
+
+    ws.text(ws.got_text());
+
+    ws.async_write(boost::asio::buffer(reply), beast::bind_front_handler(&Session::OnWrite, shared_from_this()));
+}
+
+void Session::OnWrite(beast::error_code ec, std::size_t bytes_transferred)
+{
+    boost::ignore_unused(bytes_transferred);
+
+    if (ec)
+    {
+        logger->Error("OnWrite error: {}", ec.message());
+        return;
+    }
+
+    logger->Info("Reply sent:\n{}", beast::buffers_to_string(buffer.data()));
+
+    buffer.consume(buffer.size());
+
+    DoRead();
 }
 
 void Session::Parse(const std::string& json, std::string& reply)
@@ -152,6 +246,67 @@ void Session::MakeReply(const rapidjson::Document& json, std::string& reply)
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     json.Accept(writer);
     reply = buffer.GetString();
+}
+
+//Listener
+
+Listener::Listener(ServiceContext* _service_context, tcp::endpoint end_point, Logger* _logger) :
+    service_context(_service_context),
+    acceptor(asio::make_strand(service_context->io_context)),
+    logger(_logger)
+{
+    beast::error_code ec;
+
+    acceptor.open(end_point.protocol(), ec);
+    if (ec)
+        throw boost::system::system_error(ec);
+
+    acceptor.set_option(asio::socket_base::reuse_address(true), ec);
+    if (ec)
+        throw boost::system::system_error(ec);
+
+    acceptor.bind(end_point, ec);
+    if (ec)
+        throw boost::system::system_error(ec);
+
+    acceptor.listen(asio::socket_base::max_listen_connections, ec);
+    if (ec)
+        throw boost::system::system_error(ec);
+}
+
+void Listener::Run()
+{
+    DoAccept();
+}
+
+void Listener::DoAccept()
+{
+    acceptor.async_accept(asio::make_strand(service_context->io_context), beast::bind_front_handler(&Listener::OnAccept, shared_from_this()));
+}
+
+void Listener::OnAccept(beast::error_code ec, tcp::socket socket)
+{
+    if (ec)
+    {
+        logger->Error("OnAccept error: {}", ec.value());
+    }
+    else
+    {
+        try
+        {
+            std::make_shared<Session>(std::move(socket), service_context, logger)->Run();
+        }
+        catch (const boost::system::system_error& ec)
+        {
+            logger->Error("Error in Session: {}", ec.code().value());
+        }
+        catch (const std::exception& e)
+        {
+            logger->Error("Error in Session: {}", e.what());
+        }
+    }
+
+    DoAccept();
 }
 
 }
