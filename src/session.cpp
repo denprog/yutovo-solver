@@ -108,7 +108,7 @@ void Session::OnWrite(beast::error_code ec, std::size_t bytes_transferred)
         return;
     }
 
-    logger->Info("Reply sent:\n{}", beast::buffers_to_string(buffer.data()));
+    logger->Info("Reply sent:\n{}", reply);
 
     buffer.consume(buffer.size());
 
