@@ -765,40 +765,52 @@ void CalculatorSolver::SolveComplex(const rapidjson::Document& request, rapidjso
         max_count = request["max_count"].GetInt();
 
     //solving
-    Complex res = complex_parser.Parse(id, expression, dependencies, default_angle_measure, result_angle_measure, precision);
+    std::vector<Complex> results;
+    complex_parser.Parse(id, expression, dependencies, default_angle_measure, result_angle_measure, precision, max_count, results);
 
     auto& alloc = reply.GetAllocator();
     reply.AddMember("result_type", (int)ResultType::COMPLEX, alloc);
 
-    if (form == ComplexForm::Trigonometric || form == ComplexForm::Exponential)
+    rapidjson::Value results_arr(rapidjson::kArrayType);
+    for (Complex& r : results)
     {
-        rapidjson::Value m(rapidjson::kObjectType);
-        AddReal(reply, m, module(res), exponent_size, precision);
-        reply.AddMember("module", m, alloc);
-
-        rapidjson::Value a(rapidjson::kObjectType);
-        AddReal(reply, a, argument(res), exponent_size, precision);
-        reply.AddMember("argument", a, alloc);
-    }
-    else
-    {
-        if (res.GetRe() != 0)
+        rapidjson::Value res;
+        res.SetObject();
+        if (form == ComplexForm::Trigonometric || form == ComplexForm::Exponential)
         {
-            rapidjson::Value re(rapidjson::kObjectType);
-            AddReal(reply, re, res.GetRe(), exponent_size, precision);
-            reply.AddMember("re", re, alloc);
+            rapidjson::Value m(rapidjson::kObjectType);
+            AddReal(reply, m, module(r), exponent_size, precision);
+            res.AddMember("module", m, alloc);
+
+            rapidjson::Value a(rapidjson::kObjectType);
+            AddReal(reply, a, argument(r), exponent_size, precision);
+            res.AddMember("argument", a, alloc);
+        }
+        else
+        {
+            if (r.GetRe() != 0)
+            {
+                rapidjson::Value re(rapidjson::kObjectType);
+                AddReal(reply, re, r.GetRe(), exponent_size, precision);
+                res.AddMember("re", re, alloc);
+            }
+
+            if (r.GetIm() != 0)
+            {
+                rapidjson::Value im(rapidjson::kObjectType);
+                AddReal(reply, im, r.GetIm(), exponent_size, precision);
+                res.AddMember("im", im, alloc);
+            }
         }
 
-        if (res.GetIm() != 0)
-        {
-            rapidjson::Value im(rapidjson::kObjectType);
-            AddReal(reply, im, res.GetIm(), exponent_size, precision);
-            reply.AddMember("im", im, alloc);
-        }
+        if (r.GetAngleMeasure() != AngleMeasure::None)
+            res.AddMember("angle_measure", (int)r.GetAngleMeasure(), alloc);
+
+        results_arr.PushBack(res, alloc);
     }
 
-    if (res.GetAngleMeasure() != AngleMeasure::None)
-        reply.AddMember("angle_measure", (int)res.GetAngleMeasure(), alloc);
+    reply.AddMember("results", results_arr, alloc);
+
     AddDependencies(reply, dependencies);
 }
 
