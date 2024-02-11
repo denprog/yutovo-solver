@@ -48,7 +48,7 @@ void Session::OnHandshake(beast::error_code ec)
     ws.set_option(websocket::stream_base::decorator(
         [](websocket::response_type& res)
         {
-            res.set(http::field::server, std::string(BOOST_BEAST_VERSION_STRING) + " websocket-server-async-ssl");
+            res.set(http::field::server, "Yutovo service");
         }));
 
     ws.async_accept(beast::bind_front_handler(&Session::OnAccept, shared_from_this()));

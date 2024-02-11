@@ -4,6 +4,8 @@
 namespace yutovo_service
 {
 
+//Config
+
 Config::Config(Logger* _logger) :
     logger(_logger)
 {
@@ -24,8 +26,11 @@ bool Config::Read()
 
     try
     {
-        proxy_idle_timeout = pt.get<int>("Proxy.idle_timeout");
-        solver_idle_timeout = pt.get<int>("Solver.idle_timeout");
+        port = pt.get<unsigned short>("Main.port", 8010);
+        threads_count = pt.get<int>("Main.threads_count", 2);
+        wss = pt.get<bool>("Main.wss", false);
+        proxy_idle_timeout = pt.get<int>("Proxy.idle_timeout", 10);
+        solver_idle_timeout = pt.get<int>("Solver.idle_timeout", 20);
     }
     catch (boost::property_tree::ptree_error& ex)
     {
