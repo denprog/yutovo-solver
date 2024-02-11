@@ -33,11 +33,10 @@ int main(int argc, char *argv[])
     ServiceContext service_context(io_context, &config);
 
     auto const address = asio::ip::make_address("0.0.0.0");
-    unsigned short const port = 8010;
 
     try
     {
-        std::make_shared<Listener>(&service_context, tcp::endpoint{address, port}, logger)->Run();
+        std::make_shared<Listener>(&service_context, tcp::endpoint{address, config.port}, logger)->Run();
     }
     catch (boost::system::system_error& ec)
     {
