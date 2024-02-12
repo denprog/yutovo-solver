@@ -164,8 +164,7 @@ void Session::Parse(const std::string& json, std::string& reply)
         }
         SolverType solver_type = (SolverType)request_json["solver_type"].GetInt();
 
-        std::string solver_id = guid + "-" + std::to_string(code_id);
-        solver = service_context->solvers.GetSolver(solver_id, solver_type);
+        solver = service_context->solvers.GetSolver(guid, code_id, solver_type);
         if (!solver)
         {
             MakeError(ErrorCode::SOLVER_ERROR, reply);
@@ -204,7 +203,7 @@ void Session::Parse(const std::string& json, std::string& reply)
         return;
     }
 
-    if (command == "SET_LANGUAGE")
+    if (command == "SET_LOCALE")
     {
         if (!request_json.HasMember("guid") || !request_json["guid"].IsString())
         {
@@ -221,7 +220,15 @@ void Session::Parse(const std::string& json, std::string& reply)
         }
         Language language = (Language)request_json["language"].GetInt();
 
-        service_context->solvers.SetLanguage(guid, language, request_json, response_json);
+        char32_t decimal_point = U'.';
+        if (request_json.HasMember("decimal_point") && request_json["decimal_point"].IsString())
+        {
+            auto p = ToUtfString(request_json["decimal_point"].GetString());
+            if (p.length() == 1)
+                decimal_point = p[0];
+        }
+
+        service_context->solvers.SetLocale(guid, language, decimal_point, request_json, response_json);
         MakeReply(response_json, reply);
         return;
     }
