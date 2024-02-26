@@ -31,7 +31,6 @@ public:
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
-    virtual void ListUserIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
 
 protected:
@@ -65,7 +64,6 @@ public:
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
-    virtual void ListUserIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply);
 
 private:
@@ -96,7 +94,6 @@ public:
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
-    virtual void ListUserIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply);
 
 private:
