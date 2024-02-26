@@ -196,13 +196,6 @@ void Session::Parse(const std::string& json, std::string& reply)
         return;
     }
 
-    if (command == "LIST_USER_IDENTIFIERS")
-    {
-        solver->ListUserIdentifiers(request_json, response_json);
-        MakeReply(response_json, reply);
-        return;
-    }
-
     if (command == "SET_LOCALE")
     {
         if (!request_json.HasMember("guid") || !request_json["guid"].IsString())
