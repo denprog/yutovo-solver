@@ -254,6 +254,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             //try all the parsers in the requered order until one of them parses
             rapidjson::Document error_reply;
             error_reply.CopyFrom(reply, error_reply.GetAllocator());
+            std::lock_guard<std::mutex> lock(parsers_lock);
             for (size_t i = 0; i < results_order.size(); ++i)
             {
                 ResultType t = results_order[i];
@@ -311,6 +312,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
     case ResultType::COMPLEX:
         try
         {
+            std::lock_guard<std::mutex> lock(parsers_lock);
             switch (result_type)
             {
             case ResultType::REAL:
@@ -359,6 +361,7 @@ void CalculatorSolver::RemoveIdentifier(const rapidjson::Document& request, rapi
 
     try
     {
+        std::lock_guard<std::mutex> lock(parsers_lock);
         real_parser.RemoveIdentifier(id, identifier);
         integer_parser.RemoveIdentifier(id, identifier);
         rational_parser.RemoveIdentifier(id, identifier);
@@ -377,6 +380,7 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
 
     auto& alloc = reply.GetAllocator();
 
+    std::lock_guard<std::mutex> lock(parsers_lock);
     //collect all the identifiers from all the parsers
     std::vector<std::u32string> builtin_functions, user_functions, builtin_variables, user_variables, builtin_units;
     real_parser.ListBuiltinVariables(builtin_variables);
@@ -547,6 +551,7 @@ bool CalculatorSolver::SetLocale(const rapidjson::Document& request, rapidjson::
 
     try
     {
+        std::lock_guard<std::mutex> lock(parsers_lock);
         real_parser.SetLocale(locale.language, locale.decimal_point);
         integer_parser.SetLocale(locale.language, locale.decimal_point);
         rational_parser.SetLocale(locale.language, locale.decimal_point);
