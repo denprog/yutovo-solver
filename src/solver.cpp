@@ -290,6 +290,8 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                     {
                         ReplyError(ex, error_reply);
                         AddDependencies(error_reply, dependencies);
+                        if (!exit_on_success)
+                            reply.CopyFrom(error_reply, reply.GetAllocator());
                     }
                 }
                 catch (ServiceException& ex)
@@ -298,12 +300,17 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                     {
                         ReplyError(ex.error_code, error_reply);
                         AddDependencies(error_reply, dependencies);
+                        if (!exit_on_success)
+                            reply.CopyFrom(error_reply, reply.GetAllocator());
                     }
                 }
             }
 
-            //none of the parsers has parsed
-            reply.CopyFrom(error_reply, reply.GetAllocator());
+            if (exit_on_success)
+            {
+                //none of the parsers has parsed
+                reply.CopyFrom(error_reply, reply.GetAllocator());
+            }
         }
         break;
     case ResultType::REAL:
