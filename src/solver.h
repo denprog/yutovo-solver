@@ -75,6 +75,7 @@ private:
     void AddReal(rapidjson::Document& reply, rapidjson::Value& obj, const Real& value, const int exponent_size, const int precision);
 
 private:
+    std::mutex parsers_lock;
     yutovo_calculator::Parser<yutovo_calculator::Real> real_parser;
     yutovo_calculator::Parser<yutovo_calculator::Integer> integer_parser;
     yutovo_calculator::Parser<yutovo_calculator::Rational> rational_parser;
