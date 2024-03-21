@@ -254,6 +254,8 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             //try all the parsers in the requered order until one of them parses
             rapidjson::Document error_reply;
             error_reply.CopyFrom(reply, error_reply.GetAllocator());
+            rapidjson::Document first_reply;
+
             std::lock_guard<std::mutex> lock(parsers_lock);
             for (size_t i = 0; i < results_order.size(); ++i)
             {
@@ -283,6 +285,8 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                             return;
                         break;
                     }
+                    if (i == 0)
+                        first_reply.CopyFrom(reply, first_reply.GetAllocator());
                 }
                 catch (yutovo_calculator::ParserException& ex)
                 {
@@ -310,6 +314,10 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             {
                 //none of the parsers has parsed
                 reply.CopyFrom(error_reply, reply.GetAllocator());
+            }
+            else if (!error_reply.IsObject())
+            {
+                reply.CopyFrom(first_reply, reply.GetAllocator());
             }
         }
         break;
