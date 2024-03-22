@@ -213,15 +213,7 @@ void Session::Parse(const std::string& json, std::string& reply)
         }
         Language language = (Language)request_json["language"].GetInt();
 
-        char32_t decimal_point = U'.';
-        if (request_json.HasMember("decimal_point") && request_json["decimal_point"].IsString())
-        {
-            auto p = ToUtfString(request_json["decimal_point"].GetString());
-            if (p.length() == 1)
-                decimal_point = p[0];
-        }
-
-        service_context->solvers.SetLocale(guid, language, decimal_point, request_json, response_json);
+        service_context->solvers.SetLocale(guid, language, request_json, response_json);
         MakeReply(response_json, reply);
         return;
     }

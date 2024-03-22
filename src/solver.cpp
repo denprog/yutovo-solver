@@ -7,9 +7,9 @@ namespace yutovo_service
 
 //Solver
 
-Solver::Solver(const std::string& _guid, const yutovo_calculator::Language _language, const char _decimal_point) :
+Solver::Solver(const std::string& _guid, const yutovo_calculator::Language _language) :
     guid(_guid),
-    locale{_language, _decimal_point}
+    locale{_language}
 {
 }
 
@@ -182,12 +182,12 @@ bool Solver::GetUnit(const rapidjson::Document& request, Unit& unit)
 
 //CalculatorSolver
 
-CalculatorSolver::CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language, char _decimal_point) :
-    Solver(_guid, _language, _decimal_point),
-    real_parser(0, _language, _decimal_point),
-    integer_parser(0, _language, _decimal_point),
-    rational_parser(0, _language, _decimal_point),
-    complex_parser(0, _language, _decimal_point),
+CalculatorSolver::CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language) :
+    Solver(_guid, _language),
+    real_parser(0, _language),
+    integer_parser(0, _language),
+    rational_parser(0, _language),
+    complex_parser(0, _language),
     logger(Logger::GetInstance(std::string(std::getenv("YUTOVO_DEPLOY")) + "/log", "calculator_solver", true, true))
 {
     logger->Info("Calculator Solver started: {}", guid);
@@ -557,20 +557,14 @@ bool CalculatorSolver::SetLocale(const rapidjson::Document& request, rapidjson::
     }
 
     locale.language = (Language)request["language"].GetInt();
-    if (request.HasMember("decimal_point") || request["decimal_point"].IsString())
-    {
-        std::string p = request["decimal_point"].GetString();
-        if (p.length() == 1)
-            locale.decimal_point = p[0];
-    }
 
     try
     {
         std::lock_guard<std::mutex> lock(parsers_lock);
-        real_parser.SetLocale(locale.language, locale.decimal_point);
-        integer_parser.SetLocale(locale.language, locale.decimal_point);
-        rational_parser.SetLocale(locale.language, locale.decimal_point);
-        complex_parser.SetLocale(locale.language, locale.decimal_point);
+        real_parser.SetLocale(locale.language);
+        integer_parser.SetLocale(locale.language);
+        rational_parser.SetLocale(locale.language);
+        complex_parser.SetLocale(locale.language);
     }
     catch (yutovo_calculator::ParserException ex)
     {
@@ -624,7 +618,7 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
     std::string mantissa;
     bool exponent_sign;
     std::string exponent;
-    res.ToString(exponent_size, precision, mantissa_sign, mantissa, exponent_sign, exponent, locale.decimal_point);
+    res.ToString(exponent_size, precision, mantissa_sign, mantissa, exponent_sign, exponent);
     if (mantissa_sign)
         mantissa.insert(mantissa.begin(), '-');
     
@@ -876,7 +870,7 @@ void CalculatorSolver::AddReal(rapidjson::Document& reply, rapidjson::Value& obj
     std::string mantissa;
     bool exponent_sign;
     std::string exponent;
-    value.ToString(exponent_size, precision, mantissa_sign, mantissa, exponent_sign, exponent, locale.decimal_point);
+    value.ToString(exponent_size, precision, mantissa_sign, mantissa, exponent_sign, exponent);
     if (mantissa_sign)
         mantissa.insert(mantissa.begin(), '-');
     
@@ -898,7 +892,7 @@ void CalculatorSolver::AddReal(rapidjson::Document& reply, rapidjson::Value& obj
 //PythonSolver
 
 PythonSolver::PythonSolver(const std::string& _guid, const yutovo_calculator::Language _language) :
-    Solver(_guid, _language, U'.'),
+    Solver(_guid, _language),
     logger(Logger::GetInstance(std::string(std::getenv("YUTOVO_DEPLOY")) + "/log", "python_solver", true, true))
 {
     logger->Info("Python Solver started: {}", guid);
@@ -957,7 +951,7 @@ SolverPtr Solvers::GetSolver(const std::string& guid, const int code_id, SolverT
     case SolverType::CALCULATOR:
         {
             std::string solver_id = guid + "-" + std::to_string(code_id);
-            SolverPtr solver(new CalculatorSolver(solver_id, locale.language, locale.decimal_point));
+            SolverPtr solver(new CalculatorSolver(solver_id, locale.language));
             if (it == solvers.end())
             {
                 std::map<int, SolverPtr> m;
@@ -977,7 +971,7 @@ SolverPtr Solvers::GetSolver(const std::string& guid, const int code_id, SolverT
     return nullptr;
 }
 
-void Solvers::SetLocale(const std::string& guid, const yutovo_calculator::Language language, const char decimal_point, 
+void Solvers::SetLocale(const std::string& guid, const yutovo_calculator::Language language, 
     const rapidjson::Document& request, rapidjson::Document& reply)
 {
     std::lock_guard<std::mutex> lock(solvers_mutex);
@@ -988,7 +982,7 @@ void Solvers::SetLocale(const std::string& guid, const yutovo_calculator::Langua
             solver->SetLocale(request, reply);
     }
 
-    solvers_locales[guid] = SolverLocale{language, decimal_point};
+    solvers_locales[guid] = SolverLocale{language};
 }
 
 void Solvers::RemoveTimeouted()

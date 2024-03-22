@@ -20,13 +20,12 @@ using namespace yutovo;
 struct SolverLocale
 {
     yutovo_calculator::Language language = Language::English;
-    char decimal_point = '.';
 };
 
 class Solver
 {
 public:
-    Solver(const std::string& _guid, const yutovo_calculator::Language _language, const char _decimal_point);
+    Solver(const std::string& _guid, const yutovo_calculator::Language _language);
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
@@ -58,7 +57,7 @@ typedef std::shared_ptr<Solver> SolverPtr;
 class CalculatorSolver : public Solver
 {
 public:
-    CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language, char _decimal_point);
+    CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language);
     ~CalculatorSolver();
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
@@ -107,7 +106,7 @@ public:
     Solvers(Config* _config);
 
     SolverPtr GetSolver(const std::string& guid, const int code_id, SolverType solver_type);
-    void SetLocale(const std::string& guid, const yutovo_calculator::Language language, const char decimal_point, 
+    void SetLocale(const std::string& guid, const yutovo_calculator::Language language, 
         const rapidjson::Document& request, rapidjson::Document& reply);
     void RemoveTimeouted();
 
