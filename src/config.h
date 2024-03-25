@@ -22,6 +22,7 @@ public:
     bool wss = false;
     int proxy_idle_timeout = 10; //in seconds
     int solver_idle_timeout = 20;
+    uint64_t max_time = 10000; //in milliseconds
 
 private:
     const std::string file_name = "service.ini";
