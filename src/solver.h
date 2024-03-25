@@ -38,7 +38,7 @@ protected:
 
     void AddUnit(rapidjson::Document& reply, const Unit& unit);
     void AddCastUnits(rapidjson::Document& reply, const std::vector<Unit>& cast_units);
-    void AddDependencies(rapidjson::Document& reply, const std::vector<std::u32string>& dependencies);
+    void AddDependencies(rapidjson::Document& reply, const std::vector<std::u32string>* dependencies);
 
     bool GetElementId(const rapidjson::Document& request, ElementId& id);
     rapidjson::Value ElementIdToValue(rapidjson::Document& reply, const ElementId& id);
@@ -66,10 +66,10 @@ public:
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply);
 
 private:
-    void SolveReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies);
-    void SolveInteger(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies);
-    void SolveRational(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies);
-    void SolveComplex(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>& dependencies);
+    void SolveReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
+    void SolveInteger(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
+    void SolveRational(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
+    void SolveComplex(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
 
     void AddReal(rapidjson::Document& reply, rapidjson::Value& obj, const Real& value, const int exponent_size, const int precision);
 
