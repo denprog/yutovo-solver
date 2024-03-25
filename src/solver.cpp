@@ -255,6 +255,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             rapidjson::Document error_reply;
             error_reply.CopyFrom(reply, error_reply.GetAllocator());
             rapidjson::Document first_reply;
+            bool error = false;
 
             std::lock_guard<std::mutex> lock(parsers_lock);
             for (size_t i = 0; i < results_order.size(); ++i)
@@ -296,6 +297,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                         AddDependencies(error_reply, &dependencies);
                         if (!exit_on_success)
                             reply.CopyFrom(error_reply, reply.GetAllocator());
+                        error = true;
                     }
                 }
                 catch (ServiceException& ex)
@@ -306,6 +308,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                         AddDependencies(error_reply, &dependencies);
                         if (!exit_on_success)
                             reply.CopyFrom(error_reply, reply.GetAllocator());
+                        error = true;
                     }
                 }
             }
@@ -315,7 +318,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                 //none of the parsers has parsed
                 reply.CopyFrom(error_reply, reply.GetAllocator());
             }
-            else if (!error_reply.IsObject())
+            else if (!error)
             {
                 reply.CopyFrom(first_reply, reply.GetAllocator());
             }
