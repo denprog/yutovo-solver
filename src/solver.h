@@ -57,7 +57,7 @@ typedef std::shared_ptr<Solver> SolverPtr;
 class CalculatorSolver : public Solver
 {
 public:
-    CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language);
+    CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time);
     ~CalculatorSolver();
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
@@ -88,7 +88,7 @@ private:
 class PythonSolver : public Solver
 {
 public:
-    PythonSolver(const std::string& _guid, const yutovo_calculator::Language _language);
+    PythonSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time);
     ~PythonSolver();
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);

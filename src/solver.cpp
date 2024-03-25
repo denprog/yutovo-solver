@@ -182,12 +182,12 @@ bool Solver::GetUnit(const rapidjson::Document& request, Unit& unit)
 
 //CalculatorSolver
 
-CalculatorSolver::CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language) :
+CalculatorSolver::CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time) :
     Solver(_guid, _language),
-    real_parser(0, _language),
-    integer_parser(0, _language),
-    rational_parser(0, _language),
-    complex_parser(0, _language),
+    real_parser(0, _language, _max_time),
+    integer_parser(0, _language, _max_time),
+    rational_parser(0, _language, _max_time),
+    complex_parser(0, _language, _max_time),
     logger(Logger::GetInstance(std::string(std::getenv("YUTOVO_DEPLOY")) + "/log", "calculator_solver", true, true))
 {
     logger->Info("Calculator Solver started: {}", guid);
@@ -605,7 +605,7 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
         result_angle_measure = (AngleMeasure)request["result_angle_measure"].GetInt();
 
     //solving
-    Real si_res = real_parser.Parse(id, expression, dependencies, default_angle_measure, result_angle_measure, precision);
+    Real si_res = real_parser.Parse(id, expression, &dependencies, default_angle_measure, result_angle_measure, precision);
     Real res;
 
     Unit unit;
@@ -665,7 +665,7 @@ void CalculatorSolver::SolveInteger(const rapidjson::Document& request, rapidjso
     if (request.HasMember("default_notation") && request["default_notation"].IsInt())
         default_notation = (Notation)request["default_notation"].GetInt();
 
-    yutovo_calculator::Integer res = integer_parser.Parse(id, expression, dependencies, default_notation);
+    yutovo_calculator::Integer res = integer_parser.Parse(id, expression, &dependencies, default_notation);
 
     auto& alloc = reply.GetAllocator();
     reply.AddMember("result_type", (int)ResultType::INTEGER, alloc);
@@ -716,7 +716,7 @@ void CalculatorSolver::SolveRational(const rapidjson::Document& request, rapidjs
 
     std::string expression = request["expression"].GetString();
 
-    Rational si_res = rational_parser.Parse(id, expression, dependencies);
+    Rational si_res = rational_parser.Parse(id, expression, &dependencies);
     Rational res;
 
     Unit unit;
@@ -816,7 +816,7 @@ void CalculatorSolver::SolveComplex(const rapidjson::Document& request, rapidjso
 
     //solving
     std::vector<Complex> results;
-    complex_parser.Parse(id, expression, dependencies, default_angle_measure, result_angle_measure, precision, max_count, results);
+    complex_parser.Parse(id, expression, &dependencies, default_angle_measure, result_angle_measure, precision, max_count, results);
 
     auto& alloc = reply.GetAllocator();
     reply.AddMember("result_type", (int)ResultType::COMPLEX, alloc);
@@ -891,7 +891,7 @@ void CalculatorSolver::AddReal(rapidjson::Document& reply, rapidjson::Value& obj
 
 //PythonSolver
 
-PythonSolver::PythonSolver(const std::string& _guid, const yutovo_calculator::Language _language) :
+PythonSolver::PythonSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time) :
     Solver(_guid, _language),
     logger(Logger::GetInstance(std::string(std::getenv("YUTOVO_DEPLOY")) + "/log", "python_solver", true, true))
 {
@@ -951,7 +951,7 @@ SolverPtr Solvers::GetSolver(const std::string& guid, const int code_id, SolverT
     case SolverType::CALCULATOR:
         {
             std::string solver_id = guid + "-" + std::to_string(code_id);
-            SolverPtr solver(new CalculatorSolver(solver_id, locale.language));
+            SolverPtr solver(new CalculatorSolver(solver_id, locale.language, config->max_time));
             if (it == solvers.end())
             {
                 std::map<int, SolverPtr> m;

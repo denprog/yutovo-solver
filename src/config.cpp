@@ -31,6 +31,7 @@ bool Config::Read()
         wss = pt.get<bool>("Main.wss", false);
         proxy_idle_timeout = pt.get<int>("Proxy.idle_timeout", 10);
         solver_idle_timeout = pt.get<int>("Solver.idle_timeout", 20);
+        max_time = pt.get<uint64_t>("Solver.max_time", 10000);
     }
     catch (boost::property_tree::ptree_error& ex)
     {
