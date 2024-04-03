@@ -6,7 +6,7 @@ set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 find_package(PkgConfig REQUIRED)
-find_package(yutovo_calculator REQUIRED PATHS ${INSTALL_PATH}/cmake/)
+find_package(yutovo_calculator REQUIRED PATHS ${INSTALL_PATH}/lib/cmake/)
 find_package(yutovo_logger REQUIRED PATHS ${INSTALL_PATH}/lib/cmake/)
 
 add_executable(${PROJECT_NAME}
@@ -18,7 +18,12 @@ add_executable(${PROJECT_NAME}
 
 target_compile_options(${PROJECT_NAME} PUBLIC -Wno-deprecated-declarations)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE 
+set(CMAKE_DEBUG_POSTFIX d)
+
+set_target_properties(${PROJECT_NAME} PROPERTIES 
+    DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
+
+target_link_libraries(${PROJECT_NAME} PRIVATE
     stdc++
     stdc++fs
     pthread
@@ -29,7 +34,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
-    $<INSTALL_INTERFACE:${INSTALL_PATH}/include>
+    $<$<CONFIG:Debug>:${INSTALL_PATH}/include>
+    $<$<CONFIG:Release>:${INSTALL_PATH}/include>
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
