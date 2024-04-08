@@ -82,7 +82,7 @@ private:
 
     bool just_started = true;
 
-    Logger* logger;
+    Logger* logger = nullptr;
 };
 
 class PythonSolver : public Solver
@@ -97,7 +97,7 @@ public:
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply);
 
 private:
-    Logger* logger;
+    Logger* logger = nullptr;
 };
 
 class Solvers
