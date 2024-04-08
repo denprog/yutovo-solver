@@ -1,0 +1,15 @@
+[Unit]
+Description=Yutovo service
+
+[Service]
+User=denis
+Group=denis
+ExecStart=/opt/yutovo/yutovo_service/yutovo_serviced
+WorkingDirectory=/opt/yutovo/yutovo_service/
+Type=notify
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+RequiredBy=network.target
