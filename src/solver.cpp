@@ -187,9 +187,11 @@ CalculatorSolver::CalculatorSolver(const std::string& _guid, const yutovo_calcul
     real_parser(0, _language, _max_time),
     integer_parser(0, _language, _max_time),
     rational_parser(0, _language, _max_time),
-    complex_parser(0, _language, _max_time),
-    logger(Logger::GetInstance(std::string(std::getenv("YUTOVO_DEPLOY")) + "/log", "calculator_solver", true, true))
+    complex_parser(0, _language, _max_time)
 {
+    char* p = std::getenv("YUTOVO_DEPLOY");
+    std::string s(p == nullptr ? "./log" : std::string(p) + "/log");
+    logger = Logger::GetInstance(s, "calculator_solver", true, true);
     logger->Info("Calculator Solver started: {}", guid);
 }
 
@@ -895,9 +897,11 @@ void CalculatorSolver::AddReal(rapidjson::Document& reply, rapidjson::Value& obj
 //PythonSolver
 
 PythonSolver::PythonSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time) :
-    Solver(_guid, _language),
-    logger(Logger::GetInstance(std::string(std::getenv("YUTOVO_DEPLOY")) + "/log", "python_solver", true, true))
+    Solver(_guid, _language)
 {
+    char* p = std::getenv("YUTOVO_DEPLOY");
+    std::string s(p == nullptr ? "./log" : std::string(p) + "/log");
+    logger = Logger::GetInstance(s, "python_solver", true, true);
     logger->Info("Python Solver started: {}", guid);
 }
 
