@@ -44,7 +44,7 @@ struct ServiceException
     ErrorCode error_code;
 };
 
-typedef std::vector<uint> ElementId;
+typedef std::vector<int> ElementId;
 
 }
 

@@ -402,12 +402,13 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
 
     std::lock_guard<std::mutex> lock(parsers_lock);
     //collect all the identifiers from all the parsers
-    std::vector<std::u32string> builtin_functions, user_functions, builtin_variables, user_variables, builtin_units;
+    std::vector<std::u32string> builtin_functions, user_functions, builtin_variables, builtin_units;
     real_parser.ListBuiltinVariables(builtin_variables);
     integer_parser.ListBuiltinVariables(builtin_variables);
     rational_parser.ListBuiltinVariables(builtin_variables);
     complex_parser.ListBuiltinVariables(builtin_variables);
 
+    std::vector<std::pair<std::u32string, std::u32string>> user_variables;
     real_parser.ListUserVariables(user_variables);
     integer_parser.ListUserVariables(user_variables);
     rational_parser.ListUserVariables(user_variables);
@@ -432,7 +433,9 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
     {
         rapidjson::Value var;
         var.SetObject();
-        var.AddMember("name", rapidjson::Value((boost::locale::conv::utf_to_utf<char>(u)).c_str(), alloc), alloc);
+        var.AddMember("name", rapidjson::Value((boost::locale::conv::utf_to_utf<char>(u.first)).c_str(), alloc), alloc);
+        if (!u.second.empty())
+            var.AddMember("description", rapidjson::Value((boost::locale::conv::utf_to_utf<char>(u.second)).c_str(), alloc), alloc);
         variables_arr.PushBack(var, alloc);
     }
 
