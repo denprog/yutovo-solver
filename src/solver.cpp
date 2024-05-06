@@ -402,7 +402,7 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
 
     std::lock_guard<std::mutex> lock(parsers_lock);
     //collect all the identifiers from all the parsers
-    std::vector<std::u32string> builtin_functions, user_functions, builtin_variables, builtin_units;
+    std::vector<std::u32string> builtin_functions, user_functions, builtin_variables;
     real_parser.ListBuiltinVariables(builtin_variables);
     integer_parser.ListBuiltinVariables(builtin_variables);
     rational_parser.ListBuiltinVariables(builtin_variables);
@@ -478,9 +478,7 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
 
     reply.AddMember("Functions", functions_arr, alloc);
 
-    real_parser.ListBuiltinUnits(builtin_units);
-
-    std::map<std::u32string, std::map<std::string, std::vector<std::u32string>>> units; //by system, by physical value
+    std::map<std::u32string, std::map<std::string, std::vector<std::pair<std::u32string, std::u32string>>>> units; //by system, by physical value
 
     static std::map<std::u32string, std::string> physical_values = 
         {
@@ -516,7 +514,7 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
             physical = "others";
         else
             physical = it->second;
-        units[unit.system][physical].push_back(unit.name);
+        units[unit.system][physical].push_back(std::make_pair(unit.name, unit.description));
     }
 
     rapidjson::Value units_arr(rapidjson::kArrayType);
@@ -530,7 +528,9 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
             {
                 rapidjson::Value u;
                 u.SetObject();
-                u.AddMember("name", rapidjson::Value((boost::locale::conv::utf_to_utf<char>(unit)).c_str(), alloc), alloc);
+                u.AddMember("name", rapidjson::Value((boost::locale::conv::utf_to_utf<char>(unit.first)).c_str(), alloc), alloc);
+                if (!unit.second.empty())
+                    u.AddMember("description", rapidjson::Value((boost::locale::conv::utf_to_utf<char>(unit.second)).c_str(), alloc), alloc);
                 physical_arr.PushBack(u, alloc);
             }
 
