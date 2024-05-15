@@ -36,7 +36,8 @@ enum class ErrorCode
     SOLVER_ERROR, //solver was not created or executed
     PARSER_ERROR, //expression was not parsed
     OPERATION_ERROR, //there was error
-    SOLVER_RESTARTED_ERROR //all connected code blocks need to be reevaluated
+    SOLVER_RESTARTED_ERROR, //all connected code blocks need to be reevaluated
+    TIMEOUT_ERROR //there was timeout of the service response
 };
 
 struct ServiceException

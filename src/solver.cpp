@@ -13,6 +13,15 @@ Solver::Solver(const std::string& _guid, const yutovo_calculator::Language _lang
 {
 }
 
+void Solver::ReplyOk(rapidjson::Document& reply)
+{
+    rapidjson::Value ok;
+    ok.SetObject();
+    auto& alloc = reply.GetAllocator();
+    ok.AddMember("error_code", (int)ErrorCode::OK, alloc);
+    reply.AddMember("result", ok, alloc);
+}
+
 void Solver::ReplyError(const ErrorCode error_code, rapidjson::Document& reply)
 {
     rapidjson::Value error;
@@ -143,6 +152,14 @@ bool Solver::GetElementId(const rapidjson::Document& request, ElementId& id)
     return true;
 }
 
+bool Solver::GetTimestamp(const rapidjson::Document& request, uint64_t& time_stamp)
+{
+    if (!request.HasMember("timestamp") || !request["timestamp"].IsUint64())
+        return false;
+    time_stamp = request["timestamp"].GetUint64();
+    return true;
+}
+
 rapidjson::Value Solver::ElementIdToValue(rapidjson::Document& reply, const ElementId& id)
 {
     auto& alloc = reply.GetAllocator();
@@ -220,6 +237,33 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
         return;
     }
 
+    {
+        std::lock_guard<std::mutex> lock(solving_id_lock);
+        if (!GetElementId(request, solving_id))
+        {
+            logger->Error("id error");
+            throw ServiceException{ErrorCode::NO_FIELD_ERROR};
+        }
+    }
+
+    solving_time_stamp = 0;
+    GetTimestamp(request, solving_time_stamp);
+
+    {
+        //check for breaking the solving before it's started
+        std::lock_guard<std::mutex> l(break_lock);
+        auto it = break_solvings.find(solving_id);
+        if (it != break_solvings.end())
+        {
+            if (it->second >= solving_time_stamp)
+            {
+                break_solvings.erase(it);
+                ReplyError(ParserException(solving_id, ParserExceptionCode::Break, -1, -1), reply);
+                return;
+            }
+        }
+    }
+
     ResultType result_type = (ResultType)request["result_type"].GetInt();
 
     std::vector<std::u32string> dependencies;
@@ -291,8 +335,16 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                     if (i == 0)
                         first_reply.CopyFrom(reply, first_reply.GetAllocator());
                 }
+                catch (yutovo_calculator::BreakException& ex)
+                {
+                    logger->Error("Break exception");
+                    ReplyError(ex, error_reply);
+                    reply.CopyFrom(error_reply, reply.GetAllocator());
+                    return;
+                }
                 catch (yutovo_calculator::ParserException& ex)
                 {
+                    logger->Error("Parser exception: {}", ex.ex_id);
                     if (i == 0)
                     {
                         ReplyError(ex, error_reply);
@@ -361,6 +413,37 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
         }
         break;
     }
+}
+
+void CalculatorSolver::BreakSolving(const rapidjson::Document& request, rapidjson::Document& reply)
+{
+    ElementId id;
+    if (!GetElementId(request, id))
+    {
+        logger->Error("id error");
+        throw ServiceException{ErrorCode::NO_FIELD_ERROR};
+    }
+
+    uint64_t time_stamp = 0;
+    GetTimestamp(request, time_stamp);
+
+    reply.SetObject();
+
+    {
+        std::lock_guard<std::mutex> lock(solving_id_lock);
+        if (id == solving_id && time_stamp >= solving_time_stamp)
+        {
+            parser_context.break_solving = true; //break the current solving
+        }
+        else
+        {
+            //delay breaking the future solving
+            std::lock_guard<std::mutex> l(break_lock);
+            break_solvings[id] = time_stamp;
+        }
+    }
+
+    ReplyOk(reply);
 }
 
 void CalculatorSolver::RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply)
@@ -585,13 +668,6 @@ bool CalculatorSolver::SetLocale(const rapidjson::Document& request, rapidjson::
 
 void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
 {
-    ElementId id;
-    if (!GetElementId(request, id))
-    {
-        logger->Error("id error");
-        throw ServiceException{ErrorCode::NO_FIELD_ERROR};
-    }
-
     std::string expression = request["expression"].GetString();
     
     int precision = 3;
@@ -613,14 +689,14 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
         result_angle_measure = (AngleMeasure)request["result_angle_measure"].GetInt();
 
     //solving
-    Real si_res = real_parser.Parse(id, expression, dependencies, default_angle_measure, result_angle_measure, precision);
+    Real si_res = real_parser.Parse(solving_id, expression, dependencies, default_angle_measure, result_angle_measure, precision, &parser_context);
     Real res;
 
     Unit unit;
     if (GetUnit(request, unit))
-        res = real_parser.CastToUnit(id, si_res, unit);
+        res = real_parser.CastToUnit(solving_id, si_res, unit);
     else
-        res = real_parser.GetSuitableUnit(id, si_res);
+        res = real_parser.GetSuitableUnit(solving_id, si_res);
 
     bool mantissa_sign;
     std::string mantissa;
@@ -649,7 +725,7 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
     if (!si_res.unit.IsEmpty())
     {
         std::vector<Unit> cast_units;
-        real_parser.GetCastUnits(id, si_res, cast_units);
+        real_parser.GetCastUnits(solving_id, si_res, cast_units);
         AddCastUnits(reply, cast_units);
     }
 
@@ -660,20 +736,13 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
 
 void CalculatorSolver::SolveInteger(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
 {
-    ElementId id;
-    if (!GetElementId(request, id))
-    {
-        logger->Error("id error");
-        throw ServiceException{ErrorCode::NO_FIELD_ERROR};
-    }
-
     std::string expression = request["expression"].GetString();
     Notation default_notation = Notation::Decimal;
 
     if (request.HasMember("default_notation") && request["default_notation"].IsInt())
         default_notation = (Notation)request["default_notation"].GetInt();
 
-    yutovo_calculator::Integer res = integer_parser.Parse(id, expression, dependencies, default_notation);
+    yutovo_calculator::Integer res = integer_parser.Parse(solving_id, expression, dependencies, default_notation, &parser_context);
 
     auto& alloc = reply.GetAllocator();
     reply.AddMember("result_type", (int)ResultType::INTEGER, alloc);
@@ -715,23 +784,16 @@ void CalculatorSolver::SolveInteger(const rapidjson::Document& request, rapidjso
 
 void CalculatorSolver::SolveRational(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
 {
-    ElementId id;
-    if (!GetElementId(request, id))
-    {
-        logger->Error("id error");
-        throw ServiceException{ErrorCode::NO_FIELD_ERROR};
-    }
-
     std::string expression = request["expression"].GetString();
 
-    Rational si_res = rational_parser.Parse(id, expression, dependencies);
+    Rational si_res = rational_parser.Parse(solving_id, expression, dependencies, &parser_context);
     Rational res;
 
     Unit unit;
     if (GetUnit(request, unit))
-        res = rational_parser.CastToUnit(id, si_res, unit);
+        res = rational_parser.CastToUnit(solving_id, si_res, unit);
     else
-        res = rational_parser.GetSuitableUnit(id, si_res);
+        res = rational_parser.GetSuitableUnit(solving_id, si_res);
 
     auto& alloc = reply.GetAllocator();
     reply.AddMember("result_type", (int)ResultType::RATIONAL, alloc);
@@ -778,7 +840,7 @@ void CalculatorSolver::SolveRational(const rapidjson::Document& request, rapidjs
     if (!si_res.unit.IsEmpty())
     {
         std::vector<Unit> cast_units;
-        rational_parser.GetCastUnits(id, si_res, cast_units);
+        rational_parser.GetCastUnits(solving_id, si_res, cast_units);
         AddCastUnits(reply, cast_units);
     }
 
@@ -787,13 +849,6 @@ void CalculatorSolver::SolveRational(const rapidjson::Document& request, rapidjs
 
 void CalculatorSolver::SolveComplex(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
 {
-    ElementId id;
-    if (!GetElementId(request, id))
-    {
-        logger->Error("id error");
-        throw ServiceException{ErrorCode::NO_FIELD_ERROR};
-    }
-
     std::string expression = request["expression"].GetString();
     
     int precision = 3;
@@ -824,7 +879,7 @@ void CalculatorSolver::SolveComplex(const rapidjson::Document& request, rapidjso
 
     //solving
     std::vector<Complex> results;
-    complex_parser.Parse(id, expression, dependencies, default_angle_measure, result_angle_measure, precision, max_count, results);
+    complex_parser.Parse(solving_id, expression, dependencies, default_angle_measure, result_angle_measure, precision, max_count, results, &parser_context);
 
     auto& alloc = reply.GetAllocator();
     reply.AddMember("result_type", (int)ResultType::COMPLEX, alloc);
@@ -916,6 +971,10 @@ PythonSolver::~PythonSolver()
 void PythonSolver::Solve(const rapidjson::Document& request, rapidjson::Document& reply)
 {
     idle_time = time(nullptr);
+}
+
+void PythonSolver::BreakSolving(const rapidjson::Document& request, rapidjson::Document& reply)
+{
 }
 
 void PythonSolver::RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply)
