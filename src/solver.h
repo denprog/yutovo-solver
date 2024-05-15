@@ -28,11 +28,13 @@ public:
     Solver(const std::string& _guid, const yutovo_calculator::Language _language);
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
+    virtual void BreakSolving(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
 
 protected:
+    void ReplyOk(rapidjson::Document& reply);
     void ReplyError(const ErrorCode error_code, rapidjson::Document& reply);
     void ReplyError(const yutovo_calculator::ParserException& ex, rapidjson::Document& reply);
 
@@ -41,6 +43,8 @@ protected:
     void AddDependencies(rapidjson::Document& reply, const std::vector<std::u32string>* dependencies);
 
     bool GetElementId(const rapidjson::Document& request, ElementId& id);
+    bool GetTimestamp(const rapidjson::Document& request, uint64_t& time_stamp);
+
     rapidjson::Value ElementIdToValue(rapidjson::Document& reply, const ElementId& id);
 
     bool GetUnit(const rapidjson::Document& request, Unit& unit);
@@ -61,6 +65,7 @@ public:
     ~CalculatorSolver();
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
+    virtual void BreakSolving(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply);
@@ -80,6 +85,15 @@ private:
     yutovo_calculator::Parser<yutovo_calculator::Rational> rational_parser;
     yutovo_calculator::Parser<yutovo_calculator::Complex> complex_parser;
 
+    yutovo_calculator::ParserContext parser_context;
+
+    std::mutex solving_id_lock;
+    ElementId solving_id;
+    uint64_t solving_time_stamp = 0;
+
+    std::mutex break_lock;
+    std::map<ElementId, int64_t> break_solvings;
+
     bool just_started = true;
 
     Logger* logger = nullptr;
@@ -92,6 +106,7 @@ public:
     ~PythonSolver();
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
+    virtual void BreakSolving(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply);

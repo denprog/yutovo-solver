@@ -141,7 +141,8 @@ void Session::Parse(const std::string& json, std::string& reply)
         MakeOk(reply);
         return;
     }
-    else if (command == "SOLVE_CODE" || command == "REMOVE_IDENTIFIER" || command == "LIST_IDENTIFIERS" || command == "LIST_USER_IDENTIFIERS")
+    else if (command == "SOLVE_CODE" || command == "REMOVE_IDENTIFIER" || command == "LIST_IDENTIFIERS" || command == "LIST_USER_IDENTIFIERS" || 
+        command == "BREAK_SOLVING")
     {
         if (!request_json.HasMember("guid") || !request_json["guid"].IsString())
         {
@@ -192,6 +193,13 @@ void Session::Parse(const std::string& json, std::string& reply)
     if (command == "LIST_IDENTIFIERS")
     {
         solver->ListIdentifiers(request_json, response_json);
+        MakeReply(response_json, reply);
+        return;
+    }
+
+    if (command == "BREAK_SOLVING")
+    {
+        solver->BreakSolving(request_json, response_json);
         MakeReply(response_json, reply);
         return;
     }
