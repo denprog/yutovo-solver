@@ -31,6 +31,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     crypto
     yutovo_calculator
     yutovo_logger
+    boost_chrono
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
