@@ -1,22 +1,39 @@
-#ifndef __CONTEXT_H__
-#define __CONTEXT_H__
+#ifndef __SERVICE_CONTEXT_H__
+#define __SERVICE_CONTEXT_H__
 
-#include "solver.h"
-#include "config.h"
+#ifdef REMOTE_MODE
 #include <boost/beast/ssl.hpp>
-#include <fstream>
+#endif
 
+#include <fstream>
+#include "service_config.h"
+#include "service_solver.h"
+
+#ifdef REMOTE_MODE
 namespace ssl = boost::asio::ssl;
 namespace asio = boost::asio;
+#endif
 
 namespace yutovo_service
 {
 
 struct ServiceContext
 {
-    ServiceContext(asio::io_context& _io_context, Config* config) :
-        io_context(_io_context),
+    ServiceContext(ServiceConfig* config) :
         solvers(config)
+    {
+    }
+
+    Solvers solvers;
+    bool exit = false;
+};
+
+#ifdef REMOTE_MODE
+struct RemoteServiceContext : ServiceContext
+{
+    RemoteServiceContext(asio::io_context& _io_context, ServiceConfig* config) :
+        ServiceContext(config),
+        io_context(_io_context)
     {
         ssl_context.use_certificate_chain_file("yutovo_service.crt");
         ssl_context.use_private_key_file("yutovo_service.key", ssl::context_base::file_format::pem);
@@ -31,9 +48,8 @@ struct ServiceContext
 
     asio::io_context& io_context;
     ssl::context ssl_context{ssl::context::tlsv12};
-    Solvers solvers;
-    bool exit = false;
 };
+#endif
 
 }
 
