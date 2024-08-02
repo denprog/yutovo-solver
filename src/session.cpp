@@ -1,5 +1,5 @@
 #include "session.h"
-#include "solver.h"
+#include "service_solver.h"
 #include "service_context.h"
 #include <rapidjson/writer.h>
 #include <memory>
@@ -11,108 +11,14 @@ namespace yutovo_service
 
 int Session::sessions_count = 0;
 
-Session::Session(tcp::socket&& socket, ServiceContext* _service_context, Logger* _logger) :
+Session::Session(ServiceContext* _service_context, Logger* _logger) :
     service_context(_service_context),
-    ws(std::move(socket), _service_context->ssl_context),
     logger(_logger)
 {
-    logger->Info("Sessions count: {}", ++sessions_count);
 }
 
 Session::~Session()
 {
-    logger->Info("Sessions count: {}", --sessions_count);
-}
-
-void Session::Run()
-{
-    asio::dispatch(ws.get_executor(), beast::bind_front_handler(&Session::OnRun, shared_from_this()));
-}
-
-void Session::OnRun()
-{
-    beast::get_lowest_layer(ws).expires_after(std::chrono::seconds(30));
-    ws.next_layer().async_handshake(ssl::stream_base::server, beast::bind_front_handler(&Session::OnHandshake, shared_from_this()));
-}
-
-void Session::OnHandshake(beast::error_code ec)
-{
-    if (ec)
-    {
-        logger->Error("OnHandshake error: {}", ec.message());
-        return;
-    }
-
-    beast::get_lowest_layer(ws).expires_never();
-    ws.set_option(websocket::stream_base::timeout::suggested(beast::role_type::server));
-    ws.set_option(websocket::stream_base::decorator(
-        [](websocket::response_type& res)
-        {
-            res.set(http::field::server, "Yutovo service");
-        }));
-
-    ws.async_accept(beast::bind_front_handler(&Session::OnAccept, shared_from_this()));
-}
-
-void Session::OnAccept(beast::error_code ec)
-{
-    if (ec)
-    {
-        logger->Error("OnAccept error: {}", ec.message());
-        return;
-    }
-
-    DoRead();
-}
-
-void Session::DoRead()
-{
-    ws.async_read(buffer, beast::bind_front_handler(&Session::OnRead, shared_from_this()));
-}
-
-void Session::OnRead(beast::error_code ec, std::size_t bytes_transferred)
-{
-    boost::ignore_unused(bytes_transferred);
-
-    if (ec == websocket::error::closed)
-        return;
-
-    if (ec)
-    {
-        logger->Error("OnRead error: {}", ec.message());
-        return;
-    }
-
-    if (!ws.got_text())
-        return;
-
-    std::string json = beast::buffers_to_string(buffer.data());
-    logger->Info("Request received:\n{}", json);
-
-    buffer.clear();
-
-    Parse(json, reply);
-
-    ws.text(ws.got_text());
-
-    ws.async_write(boost::asio::buffer(reply), beast::bind_front_handler(&Session::OnWrite, shared_from_this()));
-}
-
-void Session::OnWrite(beast::error_code ec, std::size_t bytes_transferred)
-{
-    boost::ignore_unused(bytes_transferred);
-
-    if (ec)
-    {
-        logger->Error("OnWrite error: {}", ec.message());
-        return;
-    }
-
-    logger->Info("Reply sent:\n{}", reply);
-
-    buffer.consume(buffer.size());
-
-    DoRead();
 }
 
 void Session::Parse(const std::string& json, std::string& reply)
@@ -229,6 +135,11 @@ void Session::Parse(const std::string& json, std::string& reply)
     MakeError(ErrorCode::UNKNOWN_COMMAND, reply);
 }
 
+void Session::SetMaxTime(const uint64_t max_time)
+{
+    service_context->solvers.SetMaxTime(max_time);
+}
+
 void Session::MakeError(const ErrorCode error_code, std::string& reply)
 {
     rapidjson::Document response_json;
@@ -255,9 +166,117 @@ void Session::MakeReply(const rapidjson::Document& json, std::string& reply)
     reply = buffer.GetString();
 }
 
+#ifdef REMOTE_MODE
+
+//RemoteSession
+
+RemoteSession::RemoteSession(tcp::socket&& socket, RemoteServiceContext* _service_context, Logger* _logger) :
+    Session(_service_context, _logger),
+    service_context(_service_context),
+    ws(std::move(socket), _service_context->ssl_context)
+{
+    logger->Info("Sessions count: {}", ++sessions_count);
+}
+
+RemoteSession::~RemoteSession()
+{
+    logger->Info("Sessions count: {}", --sessions_count);
+}
+
+void RemoteSession::Run()
+{
+    asio::dispatch(ws.get_executor(), beast::bind_front_handler(&RemoteSession::OnRun, shared_from_this()));
+}
+
+void RemoteSession::OnRun()
+{
+    beast::get_lowest_layer(ws).expires_after(std::chrono::seconds(30));
+    ws.next_layer().async_handshake(ssl::stream_base::server, beast::bind_front_handler(&RemoteSession::OnHandshake, shared_from_this()));
+}
+
+void RemoteSession::OnHandshake(beast::error_code ec)
+{
+    if (ec)
+    {
+        logger->Error("OnHandshake error: {}", ec.message());
+        return;
+    }
+
+    beast::get_lowest_layer(ws).expires_never();
+    ws.set_option(websocket::stream_base::timeout::suggested(beast::role_type::server));
+    ws.set_option(websocket::stream_base::decorator(
+        [](websocket::response_type& res)
+        {
+            res.set(http::field::server, "Yutovo service");
+        }));
+
+    ws.async_accept(beast::bind_front_handler(&RemoteSession::OnAccept, shared_from_this()));
+}
+
+void RemoteSession::OnAccept(beast::error_code ec)
+{
+    if (ec)
+    {
+        logger->Error("OnAccept error: {}", ec.message());
+        return;
+    }
+
+    DoRead();
+}
+
+void RemoteSession::DoRead()
+{
+    ws.async_read(buffer, beast::bind_front_handler(&RemoteSession::OnRead, shared_from_this()));
+}
+
+void RemoteSession::OnRead(beast::error_code ec, std::size_t bytes_transferred)
+{
+    boost::ignore_unused(bytes_transferred);
+
+    if (ec == websocket::error::closed)
+        return;
+
+    if (ec)
+    {
+        logger->Error("OnRead error: {}", ec.message());
+        return;
+    }
+
+    if (!ws.got_text())
+        return;
+
+    std::string json = beast::buffers_to_string(buffer.data());
+    logger->Info("Request received:\n{}", json);
+
+    buffer.clear();
+
+    Parse(json, reply);
+
+    ws.text(ws.got_text());
+
+    ws.async_write(boost::asio::buffer(reply), beast::bind_front_handler(&RemoteSession::OnWrite, shared_from_this()));
+}
+
+void RemoteSession::OnWrite(beast::error_code ec, std::size_t bytes_transferred)
+{
+    boost::ignore_unused(bytes_transferred);
+
+    if (ec)
+    {
+        logger->Error("OnWrite error: {}", ec.message());
+        return;
+    }
+
+    logger->Info("Reply sent:\n{}", reply);
+
+    buffer.consume(buffer.size());
+
+    DoRead();
+}
+
 //Listener
 
-Listener::Listener(ServiceContext* _service_context, tcp::endpoint end_point, Logger* _logger) :
+Listener::Listener(RemoteServiceContext* _service_context, tcp::endpoint end_point, Logger* _logger) :
     service_context(_service_context),
     acceptor(asio::make_strand(service_context->io_context)),
     logger(_logger)
@@ -301,19 +320,20 @@ void Listener::OnAccept(beast::error_code ec, tcp::socket socket)
     {
         try
         {
-            std::make_shared<Session>(std::move(socket), service_context, logger)->Run();
+            std::make_shared<RemoteSession>(std::move(socket), service_context, logger)->Run();
         }
         catch (const boost::system::system_error& ec)
         {
-            logger->Error("Error in Session: {}", ec.code().value());
+            logger->Error("Error in RemoteSession: {}", ec.code().value());
         }
         catch (const std::exception& e)
         {
-            logger->Error("Error in Session: {}", e.what());
+            logger->Error("Error in RemoteSession: {}", e.what());
         }
     }
 
     DoAccept();
 }
+#endif
 
 }

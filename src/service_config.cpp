@@ -1,17 +1,18 @@
-#include "config.h"
+#include "service_config.h"
+#include <yutovo_logger/logger.h>
 #include <boost/property_tree/ini_parser.hpp>
 
 namespace yutovo_service
 {
 
-//Config
+//ServiceConfig
 
-Config::Config(Logger* _logger) :
+ServiceConfig::ServiceConfig(yutovo::Logger* _logger) :
     logger(_logger)
 {
 }
 
-bool Config::Read()
+bool ServiceConfig::Read()
 {
     boost::property_tree::ptree pt;
     try

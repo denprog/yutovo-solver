@@ -1,4 +1,4 @@
-#include "config.h"
+#include "service_config.h"
 #include <yutovo_logger/logger.h>
 #include "service_context.h"
 #include "session.h"
@@ -29,11 +29,11 @@ int main(int argc, char *argv[])
 
     logger->Info("Yutovo service start");
 
-    Config config(logger);
+    ServiceConfig config(logger);
     config.Read();
 
     asio::io_context io_context{config.threads_count};
-    ServiceContext service_context(io_context, &config);
+    RemoteServiceContext service_context(io_context, &config);
 
     auto const address = asio::ip::make_address("0.0.0.0");
 
@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
     }
     catch (boost::system::system_error& ec)
     {
-        logger->Error("Error in Session: {}", ec.code().value());
+        logger->Error("Error in RemoteSession: {}", ec.code().value());
         return 1;
     }
     catch (std::exception& e)

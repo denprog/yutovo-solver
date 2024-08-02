@@ -1,5 +1,5 @@
-#ifndef __CONFIG_H__
-#define __CONFIG_H__
+#ifndef __SERVICE_CONFIG_H__
+#define __SERVICE_CONFIG_H__
 
 #include <string>
 #include <yutovo_logger/logger.h>
@@ -7,12 +7,10 @@
 namespace yutovo_service
 {
 
-using namespace yutovo;
-
-class Config
+class ServiceConfig
 {
 public:
-    Config(Logger* _logger);
+    ServiceConfig(yutovo::Logger* _logger);
 
     bool Read();
 
@@ -22,11 +20,11 @@ public:
     bool wss = false;
     int proxy_idle_timeout = 10; //in seconds
     int solver_idle_timeout = 20;
-    uint64_t max_time = 10000; //in milliseconds
+    uint64_t max_time = 0; //calculation max time in milliseconds
 
 private:
     const std::string file_name = "service.ini";
-    Logger* logger;
+    yutovo::Logger* logger;
 };
 
 }

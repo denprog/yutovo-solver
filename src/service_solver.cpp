@@ -1,5 +1,5 @@
-#include "solver.h"
-#include "config.h"
+#include "service_solver.h"
+#include "service_config.h"
 #include <yutovo_calculator/integer.h>
 
 namespace yutovo_service
@@ -342,6 +342,13 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                     reply.CopyFrom(error_reply, reply.GetAllocator());
                     return;
                 }
+                catch (yutovo_calculator::TimeExceedException& ex)
+                {
+                    logger->Error("Time exceed exception");
+                    ReplyError(ex, error_reply);
+                    reply.CopyFrom(error_reply, reply.GetAllocator());
+                    return;
+                }
                 catch (yutovo_calculator::ParserException& ex)
                 {
                     logger->Error("Parser exception: {}", ex.ex_id);
@@ -665,6 +672,14 @@ bool CalculatorSolver::SetLocale(const rapidjson::Document& request, rapidjson::
 
     return true;
 }
+
+void CalculatorSolver::SetMaxTime(const uint64_t max_time)
+{
+    real_parser.SetMaxTime(max_time);
+    integer_parser.SetMaxTime(max_time);
+    rational_parser.SetMaxTime(max_time);
+    complex_parser.SetMaxTime(max_time);
+};
 
 void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
 {
@@ -991,9 +1006,13 @@ bool PythonSolver::SetLocale(const rapidjson::Document& request, rapidjson::Docu
     return true;
 }
 
+void PythonSolver::SetMaxTime(const uint64_t max_time)
+{
+}
+
 //Solvers
 
-Solvers::Solvers(Config* _config) :
+Solvers::Solvers(ServiceConfig* _config) :
     config(_config)
 {
 }
@@ -1052,6 +1071,16 @@ void Solvers::SetLocale(const std::string& guid, const yutovo_calculator::Langua
     }
 
     solvers_locales[guid] = SolverLocale{language};
+}
+
+void Solvers::SetMaxTime(const uint64_t max_time)
+{
+    std::lock_guard<std::mutex> lock(solvers_mutex);
+    for (auto& s : solvers)
+    {
+        for (auto& solver : s.second)
+            solver.second->SetMaxTime(max_time);
+    }
 }
 
 void Solvers::RemoveTimeouted()

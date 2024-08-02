@@ -1,5 +1,5 @@
-#ifndef __SOLVERS_H__
-#define __SOLVERS_H__
+#ifndef __SERVICE_SOLVER_H__
+#define __SERVICE_SOLVER_H__
 
 #include <map>
 #include <memory>
@@ -12,7 +12,7 @@
 namespace yutovo_service
 {
 
-class Config;
+class ServiceConfig;
 
 using namespace yutovo_calculator;
 using namespace yutovo;
@@ -32,6 +32,7 @@ public:
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
+    virtual void SetMaxTime(const uint64_t max_time) = 0;
 
 protected:
     void ReplyOk(rapidjson::Document& reply);
@@ -69,6 +70,7 @@ public:
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply);
+    virtual void SetMaxTime(const uint64_t max_time);
 
 private:
     void SolveReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
@@ -110,6 +112,7 @@ public:
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply);
+    virtual void SetMaxTime(const uint64_t max_time);
 
 private:
     Logger* logger = nullptr;
@@ -118,11 +121,12 @@ private:
 class Solvers
 {
 public:
-    Solvers(Config* _config);
+    Solvers(ServiceConfig* _config);
 
     SolverPtr GetSolver(const std::string& guid, const int code_id, SolverType solver_type);
     void SetLocale(const std::string& guid, const yutovo_calculator::Language language, 
         const rapidjson::Document& request, rapidjson::Document& reply);
+    void SetMaxTime(const uint64_t max_time);
     void RemoveTimeouted();
 
 private:
@@ -130,7 +134,7 @@ private:
     std::map<std::string, std::map<int, SolverPtr>> solvers; //by guid and by code_id
     std::map<std::string, SolverLocale> solvers_locales; //by guid
 
-    Config* config;
+    ServiceConfig* config;
 };
 
 }
