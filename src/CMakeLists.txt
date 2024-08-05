@@ -35,8 +35,7 @@ target_compile_options(${PROJECT_NAME} PUBLIC -Wno-deprecated-declarations)
 set(CMAKE_DEBUG_POSTFIX d)
 
 if(EMSCRIPTEN)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=2")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s ALLOW_MEMORY_GROWTH=1 -s NO_DISABLE_EXCEPTION_CATCHING=1")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -s USE_PTHREADS=1")
 endif()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES 

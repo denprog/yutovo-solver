@@ -331,6 +331,11 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                         if (exit_on_success)
                             return;
                         break;
+                    case ResultType::AUTO:
+                    case ResultType::NONE:
+                        ReplyError(ErrorCode::OPERATION_ERROR, reply);
+                        reply.CopyFrom(error_reply, reply.GetAllocator());
+                        return;
                     }
                     if (i == 0)
                         first_reply.CopyFrom(reply, first_reply.GetAllocator());
@@ -406,6 +411,10 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             case ResultType::COMPLEX:
                 SolveComplex(request, reply, &dependencies);
                 break;
+            case ResultType::AUTO:
+            case ResultType::NONE:
+                ReplyError(ErrorCode::OPERATION_ERROR, reply);
+                return;
             }
         }
         catch (yutovo_calculator::ParserException& ex)
@@ -419,6 +428,9 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             AddDependencies(reply, &dependencies);
         }
         break;
+    case ResultType::NONE:
+        ReplyError(ErrorCode::OPERATION_ERROR, reply);
+        return;
     }
 }
 
@@ -781,6 +793,8 @@ void CalculatorSolver::SolveInteger(const rapidjson::Document& request, rapidjso
         case Notation::Hexadecimal:
             s = res.ToStdString(16);
             break;
+        case Notation::None:
+            return;
         }
         reply.AddMember("notation", (int)notation, alloc);
     }
@@ -1053,6 +1067,7 @@ SolverPtr Solvers::GetSolver(const std::string& guid, const int code_id, SolverT
             return solver;
         }
     case SolverType::PYTHON:
+    case SolverType::NONE:
         break;
     }
 
