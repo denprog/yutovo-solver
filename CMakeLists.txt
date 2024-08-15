@@ -30,8 +30,8 @@ else()
     set(INSTALL_PATH "$ENV{YUTOVO_DEPLOY}")
 endif()
 
-# set(REMOTE_MODE true)
-# add_compile_definitions(REMOTE_MODE)
+set(REMOTE_MODE true)
+add_compile_definitions(REMOTE_MODE)
 
 option(BUILD_TESTS "Build unit tests" ON)
 
