@@ -11,7 +11,7 @@
 #include <boost/asio/detached.hpp>
 #include <boost/asio/use_awaitable.hpp>
 
-using namespace yutovo_service;
+using namespace yutovo_solver;
 
 namespace beast = boost::beast;
 namespace http = beast::http;
@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
     std::string s(p == nullptr ? "./log" : std::string(p) + "/log");
     Logger* logger = Logger::GetInstance(s, "solver", true, true);
 
-    logger->Info("Yutovo service start");
+    logger->Info("Yutovo solver start");
 
     ServiceConfig config(logger);
     config.Read();

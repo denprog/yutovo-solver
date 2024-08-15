@@ -4,7 +4,7 @@
 #include <string>
 #include <yutovo_logger/logger.h>
 
-namespace yutovo_service
+namespace yutovo_solver
 {
 
 class ServiceConfig
@@ -23,7 +23,7 @@ public:
     uint64_t max_time = 0; //calculation max time in milliseconds
 
 private:
-    const std::string file_name = "service.ini";
+    const std::string file_name = "yutovo_solver.ini";
     yutovo::Logger* logger;
 };
 

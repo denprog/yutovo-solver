@@ -2,7 +2,7 @@
 #include "service_config.h"
 #include <yutovo_calculator/integer.h>
 
-namespace yutovo_service
+namespace yutovo_solver
 {
 
 //Solver

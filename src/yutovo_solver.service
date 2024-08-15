@@ -1,11 +1,11 @@
 [Unit]
-Description=Yutovo service
+Description=Yutovo solver
 
 [Service]
 User=denis
 Group=denis
-ExecStart=/opt/yutovo/yutovo_service/yutovo_serviced
-WorkingDirectory=/opt/yutovo/yutovo_service/
+ExecStart=/opt/yutovo/yutovo_solver/yutovo_solverd
+WorkingDirectory=/opt/yutovo/yutovo_solver/
 Type=notify
 Restart=always
 RestartSec=5

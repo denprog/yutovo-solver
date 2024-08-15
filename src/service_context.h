@@ -14,7 +14,7 @@ namespace ssl = boost::asio::ssl;
 namespace asio = boost::asio;
 #endif
 
-namespace yutovo_service
+namespace yutovo_solver
 {
 
 struct ServiceContext
@@ -35,8 +35,8 @@ struct RemoteServiceContext : ServiceContext
         ServiceContext(config),
         io_context(_io_context)
     {
-        ssl_context.use_certificate_chain_file("yutovo_service.crt");
-        ssl_context.use_private_key_file("yutovo_service.key", ssl::context_base::file_format::pem);
+        ssl_context.use_certificate_chain_file("yutovo_solver.crt");
+        ssl_context.use_private_key_file("yutovo_solver.key", ssl::context_base::file_format::pem);
         ssl_context.set_default_verify_paths();
         ssl_context.set_options(boost::asio::ssl::context::default_workarounds |
             boost::asio::ssl::context::no_compression |

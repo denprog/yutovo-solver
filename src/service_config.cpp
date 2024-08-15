@@ -2,7 +2,7 @@
 #include <yutovo_logger/logger.h>
 #include <boost/property_tree/ini_parser.hpp>
 
-namespace yutovo_service
+namespace yutovo_solver
 {
 
 //ServiceConfig

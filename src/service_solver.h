@@ -9,7 +9,7 @@
 #include "rapidjson/document.h"
 #include "types.h"
 
-namespace yutovo_service
+namespace yutovo_solver
 {
 
 class ServiceConfig;
