@@ -26,7 +26,7 @@ namespace http = beast::http;
 namespace ssl = boost::asio::ssl;
 #endif
 
-namespace yutovo_service
+namespace yutovo_solver
 {
 
 class ServiceContext;

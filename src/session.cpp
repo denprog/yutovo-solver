@@ -4,7 +4,7 @@
 #include <rapidjson/writer.h>
 #include <memory>
 
-namespace yutovo_service
+namespace yutovo_solver
 {
 
 //Session

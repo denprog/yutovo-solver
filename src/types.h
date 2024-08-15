@@ -5,7 +5,7 @@
 
 typedef unsigned int uint;
 
-namespace yutovo_service
+namespace yutovo_solver
 {
 
 enum class SolverType
