@@ -39,6 +39,7 @@ if(EMSCRIPTEN)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexceptions")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s DISABLE_EXCEPTION_THROWING=0")
     target_link_options(${PROJECT_NAME} PUBLIC "-fexceptions -s DISABLE_EXCEPTION_THROWING=0")
+    target_compile_options(${PROJECT_NAME} PUBLIC -Wno-ambiguous-reversed-operator)
 endif()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES 
