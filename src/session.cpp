@@ -96,6 +96,20 @@ void Session::Parse(const std::string& json, std::string& reply)
         return;
     }
 
+    if (command == "REMOVE_USER_IDENTIFIERS")
+    {
+        if (!request_json.HasMember("guid") || !request_json["guid"].IsString())
+        {
+            MakeError(ErrorCode::NO_FIELD_ERROR, reply);
+            return;
+        }
+        guid = request_json["guid"].GetString();
+
+        service_context->solvers.RemoveUserIdentifiers(guid, request_json, response_json);
+        MakeReply(response_json, reply);
+        return;
+    }
+
     if (command == "LIST_IDENTIFIERS")
     {
         solver->ListIdentifiers(request_json, response_json);

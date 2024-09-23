@@ -30,6 +30,7 @@ public:
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual void BreakSolving(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
+    virtual void RemoveUserIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual void SetMaxTime(const uint64_t max_time) = 0;
@@ -68,6 +69,7 @@ public:
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void BreakSolving(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply);
+    virtual void RemoveUserIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void SetMaxTime(const uint64_t max_time);
@@ -110,6 +112,7 @@ public:
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void BreakSolving(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply);
+    virtual void RemoveUserIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void SetMaxTime(const uint64_t max_time);
@@ -126,6 +129,7 @@ public:
     SolverPtr GetSolver(const std::string& guid, const int code_id, SolverType solver_type);
     void SetLocale(const std::string& guid, const yutovo_calculator::Language language, 
         const rapidjson::Document& request, rapidjson::Document& reply);
+    void RemoveUserIdentifiers(const std::string& guid, const rapidjson::Document& request, rapidjson::Document& reply);
     void SetMaxTime(const uint64_t max_time);
     void RemoveTimeouted();
 
