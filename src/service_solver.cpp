@@ -496,6 +496,25 @@ void CalculatorSolver::RemoveIdentifier(const rapidjson::Document& request, rapi
     }
 }
 
+void CalculatorSolver::RemoveUserIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply)
+{
+    idle_time = time(nullptr);
+
+    try
+    {
+        std::lock_guard<std::mutex> lock(parsers_lock);
+        real_parser.RemoveUserIdentifiers();
+        integer_parser.RemoveUserIdentifiers();
+        rational_parser.RemoveUserIdentifiers();
+        complex_parser.RemoveUserIdentifiers();
+    }
+    catch (yutovo_calculator::ParserException ex)
+    {
+        ReplyError(ex, reply);
+        return;
+    }
+}
+
 void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply)
 {
     idle_time = time(nullptr);
@@ -1011,6 +1030,10 @@ void PythonSolver::RemoveIdentifier(const rapidjson::Document& request, rapidjso
     idle_time = time(nullptr);
 }
 
+void PythonSolver::RemoveUserIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply)
+{
+}
+
 void PythonSolver::ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply)
 {
 }
@@ -1086,6 +1109,17 @@ void Solvers::SetLocale(const std::string& guid, const yutovo_calculator::Langua
     }
 
     solvers_locales[guid] = SolverLocale{language};
+}
+
+void Solvers::RemoveUserIdentifiers(const std::string& guid, const rapidjson::Document& request, rapidjson::Document& reply)
+{
+    std::lock_guard<std::mutex> lock(solvers_mutex);
+    auto it = solvers.find(guid);
+    if (it != solvers.end())
+    {
+        for (auto& [code_id, solver] : it->second)
+            solver->RemoveUserIdentifiers(request, reply);
+    }
 }
 
 void Solvers::SetMaxTime(const uint64_t max_time)
