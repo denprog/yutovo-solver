@@ -302,6 +302,8 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             error_reply.CopyFrom(reply, error_reply.GetAllocator());
             rapidjson::Document first_reply;
             bool error = false;
+            rapidjson::Document r;
+            r.CopyFrom(request, r.GetAllocator());
 
             std::lock_guard<std::mutex> lock(parsers_lock);
             for (size_t i = 0; i < results_order.size(); ++i)
@@ -312,22 +314,22 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                     switch (t)
                     {
                     case ResultType::REAL:
-                        SolveReal(request, reply, &dependencies);
+                        SolveReal(r, reply, &dependencies);
                         if (exit_on_success)
                             return;
                         break;
                     case ResultType::INTEGER:
-                        SolveInteger(request, reply, &dependencies);
+                        SolveInteger(r, reply, &dependencies);
                         if (exit_on_success)
                             return;
                         break;
                     case ResultType::RATIONAL:
-                        SolveRational(request, reply, &dependencies);
+                        SolveRational(r, reply, &dependencies);
                         if (exit_on_success)
                             return;
                         break;
                     case ResultType::COMPLEX:
-                        SolveComplex(request, reply, &dependencies);
+                        SolveComplex(r, reply, &dependencies);
                         if (exit_on_success)
                             return;
                         break;
@@ -356,6 +358,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                 }
                 catch (yutovo_calculator::ParserException& ex)
                 {
+                    r.CopyFrom(request, r.GetAllocator());
                     logger->Error("Parser exception: {}", ex.ex_id);
                     if (i == 0)
                     {
