@@ -174,7 +174,7 @@ bool Solver::GetUnit(const rapidjson::Document& request, Unit& unit)
     if (!request.HasMember("unit") || !request["unit"].IsObject())
         return false;
     
-    rapidjson::Value _unit = ((rapidjson::Document&)request)["unit"].GetObject();
+    const auto& _unit = request["unit"].GetObject();
     if (!_unit.HasMember("value") || !_unit["value"].IsArray())
         return false;
     if (_unit.HasMember("system"))
@@ -184,7 +184,7 @@ bool Solver::GetUnit(const rapidjson::Document& request, Unit& unit)
     {
         if (!arr[i].IsObject())
             return false;
-        rapidjson::Value u = arr[i].GetObject();
+        const auto& u = arr[i].GetObject();
         std::u32string name;
         int power = 1;
         if (!u.HasMember("name") || !u["name"].IsString())
@@ -302,8 +302,6 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             error_reply.CopyFrom(reply, error_reply.GetAllocator());
             rapidjson::Document first_reply;
             bool error = false;
-            rapidjson::Document r;
-            r.CopyFrom(request, r.GetAllocator());
 
             std::lock_guard<std::mutex> lock(parsers_lock);
             for (size_t i = 0; i < results_order.size(); ++i)
@@ -314,22 +312,22 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                     switch (t)
                     {
                     case ResultType::REAL:
-                        SolveReal(r, reply, &dependencies);
+                        SolveReal(request, reply, &dependencies);
                         if (exit_on_success)
                             return;
                         break;
                     case ResultType::INTEGER:
-                        SolveInteger(r, reply, &dependencies);
+                        SolveInteger(request, reply, &dependencies);
                         if (exit_on_success)
                             return;
                         break;
                     case ResultType::RATIONAL:
-                        SolveRational(r, reply, &dependencies);
+                        SolveRational(request, reply, &dependencies);
                         if (exit_on_success)
                             return;
                         break;
                     case ResultType::COMPLEX:
-                        SolveComplex(r, reply, &dependencies);
+                        SolveComplex(request, reply, &dependencies);
                         if (exit_on_success)
                             return;
                         break;
@@ -358,7 +356,6 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                 }
                 catch (yutovo_calculator::ParserException& ex)
                 {
-                    r.CopyFrom(request, r.GetAllocator());
                     logger->Error("Parser exception: {}", ex.ex_id);
                     if (i == 0)
                     {
