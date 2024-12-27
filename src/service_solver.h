@@ -16,6 +16,7 @@ class ServiceConfig;
 
 using namespace yutovo_calculator;
 using namespace yutovo;
+using ElementId = yutovo_calculator::ElementId;
 
 struct SolverLocale
 {
