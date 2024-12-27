@@ -40,6 +40,7 @@ void Solver::ReplyError(const yutovo_calculator::ParserException& ex, rapidjson:
     error.AddMember("error_code", (int)ErrorCode::PARSER_ERROR, alloc);
     error.AddMember("parser_error_code", ex.ex_id, alloc);
     error.AddMember("pos", ex.pos, alloc);
+    error.AddMember("size", ex.size, alloc);
     error.AddMember("line", ex.line, alloc);
     rapidjson::Value s((boost::locale::conv::utf_to_utf<char>(ex.description)).c_str(), alloc);
     error.AddMember("description", s, alloc);
