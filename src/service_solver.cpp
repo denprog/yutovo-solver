@@ -36,7 +36,7 @@ void Solver::ReplyError(const yutovo_calculator::ParserException& ex, rapidjson:
     rapidjson::Value error;
     error.SetObject();
     auto& alloc = reply.GetAllocator();
-    error.AddMember("id", ElementIdToValue(reply, ex.id), alloc);
+    error.AddMember("id", LogicalIdToValue(reply, ex.id), alloc);
     error.AddMember("error_code", (int)ErrorCode::PARSER_ERROR, alloc);
     error.AddMember("parser_error_code", ex.ex_id, alloc);
     error.AddMember("pos", ex.pos, alloc);
@@ -138,7 +138,7 @@ void Solver::AddDependencies(rapidjson::Document& reply, const std::vector<std::
     reply.AddMember("dependencies", d, alloc);
 }
 
-bool Solver::GetElementId(const rapidjson::Document& request, ElementId& id)
+bool Solver::GetLogicalId(const rapidjson::Document& request, LogicalId& id)
 {
     if (!request.HasMember("id") || !request["id"].IsArray())
         return false;
@@ -161,7 +161,7 @@ bool Solver::GetTimestamp(const rapidjson::Document& request, uint64_t& time_sta
     return true;
 }
 
-rapidjson::Value Solver::ElementIdToValue(rapidjson::Document& reply, const ElementId& id)
+rapidjson::Value Solver::LogicalIdToValue(rapidjson::Document& reply, const LogicalId& id)
 {
     auto& alloc = reply.GetAllocator();
     rapidjson::Value d(rapidjson::kArrayType);
@@ -240,7 +240,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
 
     {
         std::lock_guard<std::mutex> lock(solving_id_lock);
-        if (!GetElementId(request, solving_id))
+        if (!GetLogicalId(request, solving_id))
         {
             logger->Error("id error");
             throw ServiceException{ErrorCode::NO_FIELD_ERROR};
@@ -437,8 +437,8 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
 
 void CalculatorSolver::BreakSolving(const rapidjson::Document& request, rapidjson::Document& reply)
 {
-    ElementId id;
-    if (!GetElementId(request, id))
+    LogicalId id;
+    if (!GetLogicalId(request, id))
     {
         logger->Error("id error");
         throw ServiceException{ErrorCode::NO_FIELD_ERROR};
@@ -477,8 +477,8 @@ void CalculatorSolver::RemoveIdentifier(const rapidjson::Document& request, rapi
         return;
     }
 
-    ElementId id;
-    if (!GetElementId(request, id))
+    LogicalId id;
+    if (!GetLogicalId(request, id))
         return;
     std::string identifier = request["expression"].GetString();
 

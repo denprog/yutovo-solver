@@ -16,7 +16,6 @@ class ServiceConfig;
 
 using namespace yutovo_calculator;
 using namespace yutovo;
-using ElementId = yutovo_calculator::ElementId;
 
 struct SolverLocale
 {
@@ -45,10 +44,10 @@ protected:
     void AddCastUnits(rapidjson::Document& reply, const std::vector<Unit>& cast_units);
     void AddDependencies(rapidjson::Document& reply, const std::vector<std::u32string>* dependencies);
 
-    bool GetElementId(const rapidjson::Document& request, ElementId& id);
+    bool GetLogicalId(const rapidjson::Document& request, LogicalId& id);
     bool GetTimestamp(const rapidjson::Document& request, uint64_t& time_stamp);
 
-    rapidjson::Value ElementIdToValue(rapidjson::Document& reply, const ElementId& id);
+    rapidjson::Value LogicalIdToValue(rapidjson::Document& reply, const LogicalId& id);
 
     bool GetUnit(const rapidjson::Document& request, Unit& unit);
 
@@ -93,11 +92,11 @@ private:
     yutovo_calculator::ParserContext parser_context;
 
     std::mutex solving_id_lock;
-    ElementId solving_id;
+    LogicalId solving_id;
     uint64_t solving_time_stamp = 0;
 
     std::mutex break_lock;
-    std::map<ElementId, int64_t> break_solvings;
+    std::map<LogicalId, int64_t> break_solvings;
 
     bool just_started = true;
 
