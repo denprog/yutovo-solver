@@ -711,29 +711,29 @@ void CalculatorSolver::SetMaxTime(const uint64_t max_time)
     integer_parser.SetMaxTime(max_time);
     rational_parser.SetMaxTime(max_time);
     complex_parser.SetMaxTime(max_time);
-};
+}
 
 void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
 {
     std::string expression = request["expression"].GetString();
     
     int precision = 3;
-    if (request.HasMember("precision") && request["precision"].IsInt())
-        precision = request["precision"].GetInt();
+    if (request.HasMember("real_precision") && request["real_precision"].IsInt())
+        precision = request["real_precision"].GetInt();
     if (precision <= 0)
         precision = 3;
 
     int exponent_size = 3;
-    if (request.HasMember("exponent_size") && request["exponent_size"].IsInt())
-        exponent_size = request["exponent_size"].GetInt();
+    if (request.HasMember("real_exponent_size") && request["real_exponent_size"].IsInt())
+        exponent_size = request["real_exponent_size"].GetInt();
 
     AngleMeasure default_angle_measure = AngleMeasure::None;
-    if (request.HasMember("default_angle_measure") && request["default_angle_measure"].IsInt())
-        default_angle_measure = (AngleMeasure)request["default_angle_measure"].GetInt();
+    if (request.HasMember("real_default_angle_measure") && request["real_default_angle_measure"].IsInt())
+        default_angle_measure = (AngleMeasure)request["real_default_angle_measure"].GetInt();
 
     AngleMeasure result_angle_measure = AngleMeasure::None;
-    if (request.HasMember("result_angle_measure") && request["result_angle_measure"].IsInt())
-        result_angle_measure = (AngleMeasure)request["result_angle_measure"].GetInt();
+    if (request.HasMember("real_result_angle_measure") && request["real_result_angle_measure"].IsInt())
+        result_angle_measure = (AngleMeasure)request["real_result_angle_measure"].GetInt();
 
     //solving
     Real si_res = real_parser.Parse(solving_id, expression, dependencies, default_angle_measure, result_angle_measure, precision, &parser_context);
@@ -901,22 +901,22 @@ void CalculatorSolver::SolveComplex(const rapidjson::Document& request, rapidjso
     std::string expression = request["expression"].GetString();
     
     int precision = 3;
-    if (request.HasMember("precision") && request["precision"].IsInt())
-        precision = request["precision"].GetInt();
+    if (request.HasMember("complex_precision") && request["complex_precision"].IsInt())
+        precision = request["complex_precision"].GetInt();
     if (precision <= 0)
         precision = 3;
 
     int exponent_size = 3;
-    if (request.HasMember("exponent_size") && request["exponent_size"].IsInt())
-        exponent_size = request["exponent_size"].GetInt();
+    if (request.HasMember("complex_exponent_size") && request["complex_exponent_size"].IsInt())
+        exponent_size = request["complex_exponent_size"].GetInt();
 
     AngleMeasure default_angle_measure = AngleMeasure::None;
-    if (request.HasMember("default_angle_measure") && request["default_angle_measure"].IsInt())
-        default_angle_measure = (AngleMeasure)request["default_angle_measure"].GetInt();
+    if (request.HasMember("complex_default_angle_measure") && request["complex_default_angle_measure"].IsInt())
+        default_angle_measure = (AngleMeasure)request["complex_default_angle_measure"].GetInt();
 
     AngleMeasure result_angle_measure = AngleMeasure::None;
-    if (request.HasMember("result_angle_measure") && request["result_angle_measure"].IsInt())
-        result_angle_measure = (AngleMeasure)request["result_angle_measure"].GetInt();
+    if (request.HasMember("complex_result_angle_measure") && request["complex_result_angle_measure"].IsInt())
+        result_angle_measure = (AngleMeasure)request["complex_result_angle_measure"].GetInt();
     
     ComplexForm form = ComplexForm::Arithmetic;
     if (request.HasMember("form") && request["form"].IsInt())
