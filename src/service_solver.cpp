@@ -13,6 +13,11 @@ Solver::Solver(const std::string& _guid, const yutovo_calculator::Language _lang
 {
 }
 
+void Solver::SetMaxTime(const uint64_t _max_time)
+{
+    max_time = _max_time;
+}
+
 void Solver::ReplyOk(rapidjson::Document& reply)
 {
     rapidjson::Value ok;
@@ -202,11 +207,12 @@ bool Solver::GetUnit(const rapidjson::Document& request, Unit& unit)
 
 CalculatorSolver::CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time) :
     Solver(_guid, _language),
-    real_parser(0, _language, _max_time),
-    integer_parser(0, _language, _max_time),
-    rational_parser(0, _language, _max_time),
-    complex_parser(0, _language, _max_time)
+    real_parser(0, _language),
+    integer_parser(0, _language),
+    rational_parser(0, _language),
+    complex_parser(0, _language)
 {
+    max_time = _max_time;
     char* p = std::getenv("YUTOVO_DEPLOY");
     std::string s(p == nullptr ? "./log" : std::string(p) + "/log");
     logger = Logger::GetInstance(s, "calculator_solver", true, true);
@@ -705,14 +711,6 @@ bool CalculatorSolver::SetLocale(const rapidjson::Document& request, rapidjson::
     return true;
 }
 
-void CalculatorSolver::SetMaxTime(const uint64_t max_time)
-{
-    real_parser.SetMaxTime(max_time);
-    integer_parser.SetMaxTime(max_time);
-    rational_parser.SetMaxTime(max_time);
-    complex_parser.SetMaxTime(max_time);
-}
-
 void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
 {
     std::string expression = request["expression"].GetString();
@@ -736,6 +734,7 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
         result_angle_measure = (AngleMeasure)request["real_result_angle_measure"].GetInt();
 
     //solving
+    parser_context.Init(max_time);
     Real si_res = real_parser.Parse(solving_id, expression, dependencies, default_angle_measure, result_angle_measure, precision, &parser_context);
     Real res;
 
@@ -789,6 +788,7 @@ void CalculatorSolver::SolveInteger(const rapidjson::Document& request, rapidjso
     if (request.HasMember("default_notation") && request["default_notation"].IsInt())
         default_notation = (Notation)request["default_notation"].GetInt();
 
+    parser_context.Init(max_time);
     yutovo_calculator::Integer res = integer_parser.Parse(solving_id, expression, dependencies, default_notation, &parser_context);
 
     auto& alloc = reply.GetAllocator();
@@ -835,6 +835,7 @@ void CalculatorSolver::SolveRational(const rapidjson::Document& request, rapidjs
 {
     std::string expression = request["expression"].GetString();
 
+    parser_context.Init(max_time);
     Rational si_res = rational_parser.Parse(solving_id, expression, dependencies, &parser_context);
     Rational res;
 
@@ -1042,10 +1043,6 @@ void PythonSolver::ListIdentifiers(const rapidjson::Document& request, rapidjson
 bool PythonSolver::SetLocale(const rapidjson::Document& request, rapidjson::Document& reply)
 {
     return true;
-}
-
-void PythonSolver::SetMaxTime(const uint64_t max_time)
-{
 }
 
 //Solvers
