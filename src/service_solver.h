@@ -33,7 +33,7 @@ public:
     virtual void RemoveUserIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
-    virtual void SetMaxTime(const uint64_t max_time) = 0;
+    virtual void SetMaxTime(const uint64_t _max_time);
 
 protected:
     void ReplyOk(rapidjson::Document& reply);
@@ -56,6 +56,9 @@ public:
 
     std::string guid;
     SolverLocale locale;
+
+protected:
+    uint64_t max_time = 0;
 };
 
 typedef std::shared_ptr<Solver> SolverPtr;
@@ -72,7 +75,6 @@ public:
     virtual void RemoveUserIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply);
-    virtual void SetMaxTime(const uint64_t max_time);
 
 private:
     void SolveReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
@@ -115,7 +117,6 @@ public:
     virtual void RemoveUserIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply);
-    virtual void SetMaxTime(const uint64_t max_time);
 
 private:
     Logger* logger = nullptr;
