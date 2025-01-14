@@ -622,13 +622,13 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
 
             {U"(м)", "length"},
             {U"(кг)", "mass"},
-            {U"(сек)", "time"},
+            {U"(с)", "time"},
             {U"(моль)", "amount of matter"},
             {U"(А)", "electric current"},
             {U"(Кд)", "luminosity"},
             {U"(К)", "temperature"},
-            {U"(1/(сек))", "frequency"},
-            {U"((кг*м)/(сек^2))", "power"}
+            {U"(1/(с))", "frequency"},
+            {U"((кг*м)/(с^2))", "power"}
         };
 
     std::vector<CustomUnit<yutovo_calculator::Real>> real_units;
