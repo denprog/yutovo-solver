@@ -24,7 +24,7 @@ using stream = websocket::stream<typename beast::tcp_stream::rebind_executor<typ
 int main(int argc, char *argv[])
 {
     char* p = std::getenv("YUTOVO_DEPLOY");
-    std::string s(p == nullptr ? "./log" : std::string(p) + "/log");
+    std::string s(p == nullptr ? "./log" : std::string(p) + "/log/yutovo_solver/");
     Logger* logger = Logger::GetInstance(s, "solver", true, true);
 
     logger->Info("Yutovo solver start");
