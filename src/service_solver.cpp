@@ -214,7 +214,7 @@ CalculatorSolver::CalculatorSolver(const std::string& _guid, const yutovo_calcul
 {
     max_time = _max_time;
     char* p = std::getenv("YUTOVO_DEPLOY");
-    std::string s(p == nullptr ? "./log" : std::string(p) + "/log");
+    std::string s(p == nullptr ? "./log" : std::string(p) + "/log/yutovo_solver/");
     logger = Logger::GetInstance(s, "calculator_solver", true, true);
     logger->Info("Calculator Solver started: {}", guid);
 }
