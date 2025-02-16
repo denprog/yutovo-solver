@@ -15,6 +15,13 @@ enum class SolverType
     PYTHON = 2
 };
 
+enum class ExpressionType
+{
+    NONE = 0,
+	SOLVE = 1, //expression for solving
+	USER_SYMBOL //symbol of user variable or function
+};
+
 //Returned result type
 enum class ResultType
 {

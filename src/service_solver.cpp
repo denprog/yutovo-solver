@@ -271,9 +271,11 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
         }
     }
 
-    ResultType result_type = (ResultType)request["result_type"].GetInt();
-
     std::vector<std::u32string> dependencies;
+    ResultType result_type = (ResultType)request["result_type"].GetInt();
+    ExpressionType expression_type = ExpressionType::NONE;
+    if (request.HasMember("expression_type") && request["expression_type"].IsInt())
+        expression_type = (ExpressionType)request["expression_type"].GetInt();
 
     switch (result_type)
     {
@@ -281,6 +283,8 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
         {
             std::vector<ResultType> results_order;
             bool exit_on_success = true;
+            if (expression_type == ExpressionType::USER_SYMBOL)
+                exit_on_success = false;
             if (!request.HasMember("results_order") || !request["results_order"].IsArray())
             {
                 results_order.push_back(ResultType::REAL);
@@ -308,35 +312,63 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             rapidjson::Document error_reply;
             error_reply.CopyFrom(reply, error_reply.GetAllocator());
             rapidjson::Document first_reply;
+            rapidjson::Document user_symbol_reply;
+            bool user_symbol_success = false;
             bool error = false;
 
             std::lock_guard<std::mutex> lock(parsers_lock);
             for (size_t i = 0; i < results_order.size(); ++i)
             {
                 ResultType t = results_order[i];
+                rapidjson::Document r;
+                r.SetObject();
                 try
                 {
                     switch (t)
                     {
                     case ResultType::REAL:
-                        SolveReal(request, reply, &dependencies);
+                        SolveReal(request, r, &dependencies);
+                        reply.CopyFrom(r, r.GetAllocator());
                         if (exit_on_success)
                             return;
+                        if (expression_type == ExpressionType::USER_SYMBOL && !user_symbol_success)
+                        {
+                            user_symbol_reply.CopyFrom(reply, reply.GetAllocator());
+                            user_symbol_success = true;
+                        }
                         break;
                     case ResultType::INTEGER:
-                        SolveInteger(request, reply, &dependencies);
+                        SolveInteger(request, r, &dependencies);
+                        reply.CopyFrom(r, r.GetAllocator());
                         if (exit_on_success)
                             return;
+                        if (expression_type == ExpressionType::USER_SYMBOL && !user_symbol_success)
+                        {
+                            user_symbol_reply.CopyFrom(reply, reply.GetAllocator());
+                            user_symbol_success = true;
+                        }
                         break;
                     case ResultType::RATIONAL:
-                        SolveRational(request, reply, &dependencies);
+                        SolveRational(request, r, &dependencies);
+                        reply.CopyFrom(r, r.GetAllocator());
                         if (exit_on_success)
                             return;
+                        if (expression_type == ExpressionType::USER_SYMBOL && !user_symbol_success)
+                        {
+                            user_symbol_reply.CopyFrom(reply, reply.GetAllocator());
+                            user_symbol_success = true;
+                        }
                         break;
                     case ResultType::COMPLEX:
-                        SolveComplex(request, reply, &dependencies);
+                        SolveComplex(request, r, &dependencies);
+                        reply.CopyFrom(r, r.GetAllocator());
                         if (exit_on_success)
                             return;
+                        if (expression_type == ExpressionType::USER_SYMBOL && !user_symbol_success)
+                        {
+                            user_symbol_reply.CopyFrom(reply, reply.GetAllocator());
+                            user_symbol_success = true;
+                        }
                         break;
                     case ResultType::AUTO:
                     case ResultType::NONE:
@@ -386,14 +418,16 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                 }
             }
 
-            if (exit_on_success)
+            if (expression_type == ExpressionType::USER_SYMBOL && user_symbol_success)
+                reply.CopyFrom(user_symbol_reply, user_symbol_reply.GetAllocator());
+            else if (exit_on_success)
             {
                 //none of the parsers has parsed
-                reply.CopyFrom(error_reply, reply.GetAllocator());
+                reply.CopyFrom(error_reply, error_reply.GetAllocator());
             }
             else if (!error)
             {
-                reply.CopyFrom(first_reply, reply.GetAllocator());
+                reply.CopyFrom(first_reply, first_reply.GetAllocator());
             }
         }
         break;
