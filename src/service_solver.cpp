@@ -328,7 +328,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                     {
                     case ResultType::REAL:
                         SolveReal(request, r, &dependencies);
-                        reply.CopyFrom(r, r.GetAllocator());
+                        reply.CopyFrom(r, reply.GetAllocator());
                         if (exit_on_success)
                             return;
                         if (expression_type == ExpressionType::USER_SYMBOL && !user_symbol_success)
@@ -339,7 +339,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                         break;
                     case ResultType::INTEGER:
                         SolveInteger(request, r, &dependencies);
-                        reply.CopyFrom(r, r.GetAllocator());
+                        reply.CopyFrom(r, reply.GetAllocator());
                         if (exit_on_success)
                             return;
                         if (expression_type == ExpressionType::USER_SYMBOL && !user_symbol_success)
@@ -350,7 +350,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                         break;
                     case ResultType::RATIONAL:
                         SolveRational(request, r, &dependencies);
-                        reply.CopyFrom(r, r.GetAllocator());
+                        reply.CopyFrom(r, reply.GetAllocator());
                         if (exit_on_success)
                             return;
                         if (expression_type == ExpressionType::USER_SYMBOL && !user_symbol_success)
@@ -361,7 +361,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                         break;
                     case ResultType::COMPLEX:
                         SolveComplex(request, r, &dependencies);
-                        reply.CopyFrom(r, r.GetAllocator());
+                        reply.CopyFrom(r, reply.GetAllocator());
                         if (exit_on_success)
                             return;
                         if (expression_type == ExpressionType::USER_SYMBOL && !user_symbol_success)
@@ -985,7 +985,7 @@ void CalculatorSolver::SolveComplex(const rapidjson::Document& request, rapidjso
         }
         else
         {
-            if (r.GetRe() != 0)
+            if (r.GetRe() != 0 || (r.GetRe() == 0 && r.GetIm() == 0))
             {
                 rapidjson::Value re(rapidjson::kObjectType);
                 AddReal(reply, re, r.GetRe(), exponent_size, precision);
