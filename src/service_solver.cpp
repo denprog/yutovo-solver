@@ -419,15 +419,15 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             }
 
             if (expression_type == ExpressionType::USER_SYMBOL && user_symbol_success)
-                reply.CopyFrom(user_symbol_reply, user_symbol_reply.GetAllocator());
+                reply.CopyFrom(user_symbol_reply, reply.GetAllocator());
             else if (exit_on_success)
             {
                 //none of the parsers has parsed
-                reply.CopyFrom(error_reply, error_reply.GetAllocator());
+                reply.CopyFrom(error_reply, reply.GetAllocator());
             }
             else if (!error)
             {
-                reply.CopyFrom(first_reply, first_reply.GetAllocator());
+                reply.CopyFrom(first_reply, reply.GetAllocator());
             }
         }
         break;
