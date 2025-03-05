@@ -640,7 +640,32 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
 
     reply.AddMember("Functions", functions_arr, alloc);
 
-    std::map<std::u32string, std::map<std::string, std::vector<std::pair<std::u32string, std::u32string>>>> units; //by system, by physical value
+    struct UnitsCategory
+    {
+        UnitsCategory(const std::u32string& _category) : 
+            category(_category)
+        {
+        }
+
+        std::u32string category;
+        std::vector<std::pair<std::u32string, std::u32string>> units;
+    };
+
+    struct Units
+    {
+        Units(const std::u32string& _system) : 
+            system(_system)
+        {
+        }
+
+        void AddCategory(const std::u32string& category)
+        {
+            categories.push_back(UnitsCategory(category));
+        }
+
+        std::u32string system;
+        std::vector<UnitsCategory> categories;
+    };
 
     static std::map<std::u32string, std::string> physical_values = 
         {
@@ -648,45 +673,199 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
             {U"(kg)", "mass"},
             {U"(s)", "time"},
             {U"(mol)", "amount of matter"},
-            {U"(A)", "electric current"},
             {U"(Cd)", "luminosity"},
             {U"(K)", "temperature"},
+            {U"(m^2)", "square"},
+            {U"(m^3)", "volume"},
             {U"(1/(s))", "frequency"},
-            {U"((kg*m)/(s^2))", "power"},
+            {U"((kg*m)/(s^2))", "force"},
+            {U"((kg*m^2)/(s^2))", "energy"},
+            {U"((kg)/(m*s^2))", "pressure"},
+            {U"((kg*m^2)/(s^3))", "power"},
+            {U"(cd*sr)", "luminous flux"},
+            {U"((cd*sr)/(m^2))", "illuminance"},
+            {U"(A*s)", "electrical charge"},
+            {U"(A)", "electric current"},
+            {U"((kg*m^2)/(s^3*A))", "electrical potential"},
+            {U"((kg*m^2)/(s^3*A^2))", "electrical resistance"},
+            {U"((A^2*s^4)/(kg*m^2))", "electrical capacity"},
+            {U"((kg*m^2)/(s^2*A^2))", "electrical inductance"},
+            {U"((s^3*A^2)/(kg*m^2))", "electrical conductance"},
+            {U"((kg)/(s^2*A))", "magnetic field"},
+            {U"((kg*m^2)/(s^2*A))", "magnetic flux"},
+            {U"((m^2)/(s^2))", "ionizing radiation"},
 
             {U"(м)", "length"},
             {U"(кг)", "mass"},
             {U"(с)", "time"},
             {U"(моль)", "amount of matter"},
-            {U"(А)", "electric current"},
             {U"(Кд)", "luminosity"},
             {U"(К)", "temperature"},
+            {U"(м^2)", "square"},
+            {U"(м^3)", "volume"},
             {U"(1/(с))", "frequency"},
-            {U"((кг*м)/(с^2))", "power"}
+            {U"((кг*м)/(с^2))", "force"},
+            {U"((кг*м^2)/(с^2))", "energy"},
+            {U"((кг)/(м*с^2))", "pressure"},
+            {U"((кг*м^2)/(с^3))", "power"},
+            {U"(Кд*ср)", "luminous flux"},
+            {U"((Кд*ср)/(м^2))", "illuminance"},
+            {U"(А*с)", "electrical charge"},
+            {U"(А)", "electric current"},
+            {U"((кг*м^2)/(с^3*А))", "electrical potential"},
+            {U"((кг*м^2)/(с^3*А^2))", "electrical resistance"},
+            {U"((А^2*с^4)/(кг*м^2))", "electrical capacity"},
+            {U"((кг*м^2)/(с^2*А^2))", "electrical inductance"},
+            {U"((с^3*А^2)/(кг*м^2))", "electrical conductance"},
+            {U"((кг)/(с^2*А))", "magnetic field"},
+            {U"((кг*м^2)/(с^2*А))", "magnetic flux"},
+            {U"((м^2)/(с^2))", "ionizing radiation"}
         };
+    
+    static std::map<std::u32string, std::string> others_values = 
+        {
+            {U"(bit)", "information"},
+            {U"", "rest"},
+
+            {U"(бит)", "information"}
+        };
+
+    std::vector<Units> units;
+    //set the right order
+    units.push_back(Units(U"SI"));
+    units[0].AddCategory(U"length");
+    units[0].AddCategory(U"mass");
+    units[0].AddCategory(U"time");
+    units[0].AddCategory(U"amount of matter");
+    units[0].AddCategory(U"luminosity");
+    units[0].AddCategory(U"temperature");
+    units[0].AddCategory(U"square");
+    units[0].AddCategory(U"volume");
+    units[0].AddCategory(U"frequency");
+    units[0].AddCategory(U"force");
+    units[0].AddCategory(U"energy");
+    units[0].AddCategory(U"pressure");
+    units[0].AddCategory(U"power");
+    units[0].AddCategory(U"luminous flux");
+    units[0].AddCategory(U"illuminance");
+    units[0].AddCategory(U"electrical charge");
+    units[0].AddCategory(U"electric current");
+    units[0].AddCategory(U"electrical potential");
+    units[0].AddCategory(U"electrical resistance");
+    units[0].AddCategory(U"electrical capacity");
+    units[0].AddCategory(U"electrical inductance");
+    units[0].AddCategory(U"electrical conductance");
+    units[0].AddCategory(U"magnetic field");
+    units[0].AddCategory(U"magnetic flux");
+    units[0].AddCategory(U"ionizing radiation");
+
+    units.push_back(Units(U"rus"));
+    units[1].AddCategory(U"length");
+    units[1].AddCategory(U"mass");
+    units[1].AddCategory(U"time");
+    units[1].AddCategory(U"volume");
+
+    units.push_back(Units(U"Others"));
+    units[2].AddCategory(U"information");
+    units[2].AddCategory(U"rest");
 
     std::vector<CustomUnit<yutovo_calculator::Real>> real_units;
     real_parser.ListUserUnits(real_units);
+
     for (auto& unit : real_units)
     {
         std::u32string unit_str = unit.value.unit.ToString();
+        //search in physical
         auto it = physical_values.find(unit_str);
-        std::string physical;
-        if (it == physical_values.end())
-            physical = "others";
-        else
-            physical = it->second;
-        units[unit.system][physical].push_back(std::make_pair(unit.name, unit.description));
+        if (it != physical_values.end())
+        {
+            auto u_it = std::find_if(units.begin(), units.end(), 
+                [system = unit.system](auto& u)
+                {
+                    return u.system == system;
+                });
+            if (u_it != units.end())
+            {
+                std::vector<UnitsCategory>& categories = u_it->categories;
+                auto c_it = std::find_if(categories.begin(), categories.end(), 
+                    [c = ToUtfString(it->second)](auto& cat)
+                    {
+                        return cat.category == c;
+                    });
+                if (c_it != categories.end())
+                    c_it->units.push_back(std::make_pair(unit.name, unit.description));
+                else
+                {
+                    UnitsCategory c(ToUtfString(it->second));
+                    c.units.push_back(std::make_pair(unit.name, unit.description));
+                    u_it->categories.push_back(c);
+                }
+            }
+            continue;
+        }
+
+        //search in others
+        it = others_values.find(unit_str);
+        if (it != others_values.end())
+        {
+            auto u_it = std::find_if(units.begin(), units.end(), 
+                [](auto& u)
+                {
+                    return u.system == U"Others";
+                });
+            if (u_it != units.end())
+            {
+                std::vector<UnitsCategory>& categories = u_it->categories;
+                auto c_it = std::find_if(categories.begin(), categories.end(), 
+                    [c = ToUtfString(it->second)](auto& cat)
+                    {
+                        return cat.category == c;
+                    });
+                if (c_it != categories.end())
+                    c_it->units.push_back(std::make_pair(unit.name, unit.description));
+                else
+                {
+                    UnitsCategory c(ToUtfString(it->second));
+                    c.units.push_back(std::make_pair(unit.name, unit.description));
+                    u_it->categories.push_back(c);
+                }
+            }
+            continue;
+        }
+
+        //add to rest
+        auto u_it = std::find_if(units.begin(), units.end(), 
+            [](auto& u)
+            {
+                return u.system == U"Others";
+            });
+        if (u_it != units.end())
+        {
+            std::vector<UnitsCategory>& categories = u_it->categories;
+            auto c_it = std::find_if(categories.begin(), categories.end(), 
+                [](auto& cat)
+                {
+                    return cat.category == U"rest";
+                });
+            if (c_it != categories.end())
+                c_it->units.push_back(std::make_pair(unit.name, unit.description));
+            else
+            {
+                UnitsCategory c(U"rest");
+                c.units.push_back(std::make_pair(unit.name, unit.description));
+                u_it->categories.push_back(c);
+            }
+        }
     }
 
     rapidjson::Value units_arr(rapidjson::kArrayType);
     for (auto& system : units)
     {
         rapidjson::Value system_arr(rapidjson::kArrayType);
-        for (auto& physical : system.second)
+        for (auto& category : system.categories)
         {
             rapidjson::Value physical_arr(rapidjson::kArrayType);
-            for (auto& unit : physical.second)
+            for (auto& unit : category.units)
             {
                 rapidjson::Value u;
                 u.SetObject();
@@ -699,7 +878,7 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
             rapidjson::Value p;
             p.SetObject();
             rapidjson::Value m;
-            m.SetString((boost::locale::conv::utf_to_utf<char>(physical.first)).c_str(), alloc);
+            m.SetString((boost::locale::conv::utf_to_utf<char>(category.category)).c_str(), alloc);
             p.AddMember(m, physical_arr, alloc);
             system_arr.PushBack(p, alloc);
         }
@@ -707,7 +886,12 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
         rapidjson::Value p;
         p.SetObject();
         rapidjson::Value m;
-        m.SetString((boost::locale::conv::utf_to_utf<char>(system.first)).c_str(), alloc);
+        auto s = system.system;
+        if (s == U"rus")
+            s = U"Russian";
+        else if (s == U"eng")
+            s = U"English";
+        m.SetString((boost::locale::conv::utf_to_utf<char>(s)).c_str(), alloc);
         p.AddMember(m, system_arr, alloc);
         units_arr.PushBack(p, alloc);
     }
