@@ -673,7 +673,7 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
             {U"(kg)", "mass"},
             {U"(s)", "time"},
             {U"(mol)", "amount of matter"},
-            {U"(Cd)", "luminosity"},
+            {U"(cd)", "luminosity"},
             {U"(K)", "temperature"},
             {U"(m^2)", "square"},
             {U"(m^3)", "volume"},
