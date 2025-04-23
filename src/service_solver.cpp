@@ -2,6 +2,10 @@
 #include "service_config.h"
 #include <yutovo_calculator/integer.h>
 
+#ifdef _MSC_VER
+#undef GetObject
+#endif
+
 namespace yutovo_solver
 {
 
@@ -395,7 +399,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                 }
                 catch (yutovo_calculator::ParserException& ex)
                 {
-                    logger->Error("Parser exception: {}", ex.ex_id);
+                    logger->Error("Parser exception: {}", (int)ex.ex_id);
                     if (i == 0)
                     {
                         ReplyError(ex, error_reply);

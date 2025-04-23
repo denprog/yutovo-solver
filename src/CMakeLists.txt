@@ -4,16 +4,23 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
+if(WIN32)
+    set(SPDLOG_FMT_EXTERNAL ON)
+endif()
 
 if(EMSCRIPTEN)
     set(CMAKE_FIND_ROOT_PATH ${INSTALL_PATH}/wasm/cmake/)
-else()
+elseif(NOT WIN32)
     set(CMAKE_FIND_ROOT_PATH ${INSTALL_PATH}/lib/cmake/)
 endif()
 
 find_package(PkgConfig REQUIRED)
 find_package(yutovo_calculator REQUIRED)
 find_package(yutovo_logger REQUIRED)
+if(WIN32)
+    pkg_check_modules(mpfr REQUIRED IMPORTED_TARGET mpfr)
+    find_package(RapidJSON CONFIG REQUIRED)
+endif()
 
 if(REMOTE_MODE)
     add_executable(${PROJECT_NAME}
@@ -30,7 +37,11 @@ else()
     )
 endif()
 
-target_compile_options(${PROJECT_NAME} PUBLIC -Wno-deprecated-declarations)
+if(WIN32)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8 /bigobj")
+else()
+    target_compile_options(${PROJECT_NAME} PUBLIC -Wno-deprecated-declarations)
+endif()
 
 set(CMAKE_DEBUG_POSTFIX d)
 
@@ -62,12 +73,20 @@ if(REMOTE_MODE)
         yutovo_logger
     )
 else()
-    target_link_libraries(${PROJECT_NAME} PRIVATE
-        stdc++
-        pthread
-        yutovo_calculator
-        yutovo_logger
-    )
+    if(WIN32)
+        target_link_libraries(${PROJECT_NAME} PRIVATE
+            yutovo_calculator
+            yutovo_logger
+        )
+        target_link_libraries(${PROJECT_NAME} PRIVATE RapidJSON rapidjson)
+    else()
+        target_link_libraries(${PROJECT_NAME} PRIVATE
+            stdc++
+            pthread
+            yutovo_calculator
+            yutovo_logger
+        )
+    endif()
 endif()
 
 target_include_directories(${PROJECT_NAME} PUBLIC
@@ -143,9 +162,13 @@ else()
     )
 endif()
 
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../keys/yutovo_solver.crt ${CMAKE_CURRENT_BINARY_DIR}/../
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../keys/yutovo_solver.key ${CMAKE_CURRENT_BINARY_DIR}/../
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../keys/yutovo_solver.pub ${CMAKE_CURRENT_BINARY_DIR}/../
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/yutovo_solver.ini ${CMAKE_CURRENT_BINARY_DIR}/../
-)
+if(NOT WIN32)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../keys/yutovo_solver.crt ${CMAKE_CURRENT_BINARY_DIR}/../
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../keys/yutovo_solver.key ${CMAKE_CURRENT_BINARY_DIR}/../
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../keys/yutovo_solver.pub ${CMAKE_CURRENT_BINARY_DIR}/../
+    )
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/yutovo_solver.ini ${CMAKE_CURRENT_BINARY_DIR}/../
+    )
+endif()
