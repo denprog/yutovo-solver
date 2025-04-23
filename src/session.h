@@ -29,7 +29,7 @@ namespace ssl = boost::asio::ssl;
 namespace yutovo_solver
 {
 
-class ServiceContext;
+struct ServiceContext;
 
 using namespace yutovo;
 
