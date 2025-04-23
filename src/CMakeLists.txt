@@ -14,6 +14,10 @@ elseif(NOT WIN32)
     set(CMAKE_FIND_ROOT_PATH ${INSTALL_PATH}/lib/cmake/)
 endif()
 
+if(WIN32)
+	set(CMAKE_PREFIX_PATH "${INSTALL_PATH}")
+endif()
+
 find_package(PkgConfig REQUIRED)
 find_package(yutovo_calculator REQUIRED)
 find_package(yutovo_logger REQUIRED)
