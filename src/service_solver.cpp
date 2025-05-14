@@ -209,17 +209,16 @@ bool Solver::GetUnit(const rapidjson::Document& request, Unit& unit)
 
 //CalculatorSolver
 
-CalculatorSolver::CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time) :
+CalculatorSolver::CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time, yutovo::Config& _config) :
     Solver(_guid, _language),
     real_parser(0, _language),
     integer_parser(0, _language),
     rational_parser(0, _language),
-    complex_parser(0, _language)
+    complex_parser(0, _language),
+    config(_config),
+    logger(Logger::GetInstance(config.logs_path + "/yutovo_solver", "calculator_solver", config.log_console, config.log_file))
 {
     max_time = _max_time;
-    char* p = std::getenv("YUTOVO_DEPLOY");
-    std::string s(p == nullptr ? "./log" : std::string(p) + "/log/yutovo_solver/");
-    logger = Logger::GetInstance(s, "calculator_solver", true, true);
     logger->Info("Calculator Solver started: {}", guid);
 }
 
@@ -1226,13 +1225,11 @@ void CalculatorSolver::AddReal(rapidjson::Document& reply, rapidjson::Value& obj
 
 //PythonSolver
 
-PythonSolver::PythonSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time) :
-    Solver(_guid, _language)
+PythonSolver::PythonSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time, yutovo::Config& _config) :
+    Solver(_guid, _language),
+    config(_config),
+    logger(Logger::GetInstance(config.logs_path + "/yutovo_solver", "yutovo_solver", config.log_console, config.log_file))
 {
-    char* p = std::getenv("YUTOVO_DEPLOY");
-    std::string s(p == nullptr ? "./log" : std::string(p) + "/log");
-    logger = Logger::GetInstance(s, "python_solver", true, true);
-    logger->Info("Python Solver started: {}", guid);
 }
 
 PythonSolver::~PythonSolver()
@@ -1269,8 +1266,9 @@ bool PythonSolver::SetLocale(const rapidjson::Document& request, rapidjson::Docu
 
 //Solvers
 
-Solvers::Solvers(ServiceConfig* _config) :
-    config(_config)
+Solvers::Solvers(ServiceConfig* _service_config, yutovo::Config& _editor_config) :
+    service_config(_service_config),
+    editor_config(_editor_config)
 {
 }
 
@@ -1296,7 +1294,7 @@ SolverPtr Solvers::GetSolver(const std::string& guid, const int code_id, SolverT
     case SolverType::CALCULATOR:
         {
             std::string solver_id = guid + "-" + std::to_string(code_id);
-            SolverPtr solver(new CalculatorSolver(solver_id, locale.language, config->max_time));
+            SolverPtr solver(new CalculatorSolver(solver_id, locale.language, service_config->max_time, editor_config));
             if (it == solvers.end())
             {
                 std::map<int, SolverPtr> m;
@@ -1361,7 +1359,7 @@ void Solvers::RemoveTimeouted()
         for (auto it_s = m.begin(); it_s != m.end();)
         {
             SolverPtr& s = it_s->second;
-            if (time(nullptr) - s->idle_time > config->solver_idle_timeout)
+            if (time(nullptr) - s->idle_time > service_config->solver_idle_timeout)
             {
                 m.erase(it_s++);
                 continue;
