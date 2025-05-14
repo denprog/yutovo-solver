@@ -11,13 +11,10 @@ namespace yutovo_solver
 
 int Session::sessions_count = 0;
 
-Session::Session(ServiceContext* _service_context, Logger* _logger) :
+Session::Session(ServiceContext* _service_context, yutovo::Config& _config) :
     service_context(_service_context),
-    logger(_logger)
-{
-}
-
-Session::~Session()
+    config(_config),
+    logger(Logger::GetInstance(config.logs_path + "/yutovo_solver", "yutovo_solver", config.log_console, config.log_file))
 {
 }
 

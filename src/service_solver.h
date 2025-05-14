@@ -6,6 +6,7 @@
 #include <mutex>
 #include <yutovo_logger/logger.h>
 #include <yutovo_calculator/parser.h>
+#include <yutovo_editor/config.h>
 #include "rapidjson/document.h"
 #include "types.h"
 
@@ -66,7 +67,7 @@ typedef std::shared_ptr<Solver> SolverPtr;
 class CalculatorSolver : public Solver
 {
 public:
-    CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time);
+    CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time, yutovo::Config& _config);
     ~CalculatorSolver();
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
@@ -102,13 +103,14 @@ private:
 
     bool just_started = true;
 
+    yutovo::Config& config;
     Logger* logger = nullptr;
 };
 
 class PythonSolver : public Solver
 {
 public:
-    PythonSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time);
+    PythonSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time, yutovo::Config& _config);
     ~PythonSolver();
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
@@ -119,13 +121,14 @@ public:
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply);
 
 private:
+    yutovo::Config& config;
     Logger* logger = nullptr;
 };
 
 class Solvers
 {
 public:
-    Solvers(ServiceConfig* _config);
+    Solvers(ServiceConfig* _service_config, yutovo::Config& _editor_config);
 
     SolverPtr GetSolver(const std::string& guid, const int code_id, SolverType solver_type);
     void SetLocale(const std::string& guid, const yutovo_calculator::Language language, 
@@ -139,7 +142,8 @@ private:
     std::map<std::string, std::map<int, SolverPtr>> solvers; //by guid and by code_id
     std::map<std::string, SolverLocale> solvers_locales; //by guid
 
-    ServiceConfig* config;
+    ServiceConfig* service_config;
+    yutovo::Config& editor_config;
 };
 
 }
