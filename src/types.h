@@ -44,7 +44,8 @@ enum class ErrorCode
     PARSER_ERROR, //expression was not parsed
     OPERATION_ERROR, //there was error
     SOLVER_RESTARTED_ERROR, //all connected code blocks need to be reevaluated
-    TIMEOUT_ERROR //there was timeout of the service response
+    TIMEOUT_ERROR, //there was timeout of the service response
+    NO_RESULT //the operation did not produce a result
 };
 
 struct ServiceException
