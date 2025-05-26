@@ -954,11 +954,20 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
     if (request.HasMember("real_result_angle_measure") && request["real_result_angle_measure"].IsInt())
         result_angle_measure = (AngleMeasure)request["real_result_angle_measure"].GetInt();
 
+    auto& alloc = reply.GetAllocator();
+
     //solving
     parser_context.Init(max_time);
+    parser_context.no_result = false;
     Real si_res = real_parser.Parse(solving_id, expression, dependencies, default_angle_measure, result_angle_measure, precision, &parser_context);
-    Real res;
+    if (parser_context.no_result)
+    {
+        AddDependencies(reply, dependencies);
+        reply.AddMember("result_type", (int)ResultType::NONE, alloc);
+        return;
+    }
 
+    Real res;
     Unit unit;
     if (GetUnit(request, unit))
         res = real_parser.CastToUnit(solving_id, si_res, unit);
@@ -974,7 +983,6 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
         mantissa.insert(mantissa.begin(), '-');
     
     rapidjson::Value m(rapidjson::kStringType);
-    auto& alloc = reply.GetAllocator();
     reply.AddMember("result_type", (int)ResultType::REAL, alloc);
     m.SetString(mantissa.c_str(), mantissa.size(), alloc);
     reply.AddMember("mantissa", m, alloc);
@@ -1009,10 +1017,18 @@ void CalculatorSolver::SolveInteger(const rapidjson::Document& request, rapidjso
     if (request.HasMember("integer_default_notation") && request["integer_default_notation"].IsInt())
         default_notation = (Notation)request["integer_default_notation"].GetInt();
 
-    parser_context.Init(max_time);
-    yutovo_calculator::Integer res = integer_parser.Parse(solving_id, expression, dependencies, default_notation, &parser_context);
-
     auto& alloc = reply.GetAllocator();
+
+    parser_context.Init(max_time);
+    parser_context.no_result = false;
+    yutovo_calculator::Integer res = integer_parser.Parse(solving_id, expression, dependencies, default_notation, &parser_context);
+    if (parser_context.no_result)
+    {
+        AddDependencies(reply, dependencies);
+        reply.AddMember("result_type", (int)ResultType::NONE, alloc);
+        return;
+    }
+
     reply.AddMember("result_type", (int)ResultType::INTEGER, alloc);
     std::string s;
     if (request.HasMember("integer_result_notation") && request["integer_result_notation"].IsInt())
@@ -1056,17 +1072,25 @@ void CalculatorSolver::SolveRational(const rapidjson::Document& request, rapidjs
 {
     std::string expression = request["expression"].GetString();
 
-    parser_context.Init(max_time);
-    Rational si_res = rational_parser.Parse(solving_id, expression, dependencies, &parser_context);
-    Rational res;
+    auto& alloc = reply.GetAllocator();
 
+    parser_context.Init(max_time);
+    parser_context.no_result = false;
+    Rational si_res = rational_parser.Parse(solving_id, expression, dependencies, &parser_context);
+    if (parser_context.no_result)
+    {
+        AddDependencies(reply, dependencies);
+        reply.AddMember("result_type", (int)ResultType::NONE, alloc);
+        return;
+    }
+
+    Rational res;
     Unit unit;
     if (GetUnit(request, unit))
         res = rational_parser.CastToUnit(solving_id, si_res, unit);
     else
         res = rational_parser.GetSuitableUnit(solving_id, si_res);
 
-    auto& alloc = reply.GetAllocator();
     reply.AddMember("result_type", (int)ResultType::RATIONAL, alloc);
     FractionForm form = FractionForm::Improper;
     if (request.HasMember("fraction_form") && request["fraction_form"].IsInt())
@@ -1148,11 +1172,20 @@ void CalculatorSolver::SolveComplex(const rapidjson::Document& request, rapidjso
     if (request.HasMember("complex_max_count") && request["complex_max_count"].IsInt())
         max_count = request["complex_max_count"].GetInt();
 
+    auto& alloc = reply.GetAllocator();
+
     //solving
     std::vector<Complex> results;
+    parser_context.Init(max_time);
+    parser_context.no_result = false;
     complex_parser.Parse(solving_id, expression, dependencies, default_angle_measure, result_angle_measure, precision, max_count, results, &parser_context);
+    if (parser_context.no_result)
+    {
+        AddDependencies(reply, dependencies);
+        reply.AddMember("result_type", (int)ResultType::NONE, alloc);
+        return;
+    }
 
-    auto& alloc = reply.GetAllocator();
     reply.AddMember("result_type", (int)ResultType::COMPLEX, alloc);
 
     rapidjson::Value results_arr(rapidjson::kArrayType);
