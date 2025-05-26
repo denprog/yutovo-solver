@@ -1006,8 +1006,8 @@ void CalculatorSolver::SolveInteger(const rapidjson::Document& request, rapidjso
     std::string expression = request["expression"].GetString();
     Notation default_notation = Notation::Decimal;
 
-    if (request.HasMember("default_notation") && request["default_notation"].IsInt())
-        default_notation = (Notation)request["default_notation"].GetInt();
+    if (request.HasMember("integer_default_notation") && request["integer_default_notation"].IsInt())
+        default_notation = (Notation)request["integer_default_notation"].GetInt();
 
     parser_context.Init(max_time);
     yutovo_calculator::Integer res = integer_parser.Parse(solving_id, expression, dependencies, default_notation, &parser_context);
@@ -1015,9 +1015,9 @@ void CalculatorSolver::SolveInteger(const rapidjson::Document& request, rapidjso
     auto& alloc = reply.GetAllocator();
     reply.AddMember("result_type", (int)ResultType::INTEGER, alloc);
     std::string s;
-    if (request.HasMember("result_notation") && request["result_notation"].IsInt())
+    if (request.HasMember("integer_result_notation") && request["integer_result_notation"].IsInt())
     {
-        Notation notation = (Notation)request["result_notation"].GetInt();
+        Notation notation = (Notation)request["integer_result_notation"].GetInt();
         if ((int)notation < 0 || notation > Notation::Hexadecimal)
             notation = Notation::Decimal;
         switch (notation)
@@ -1141,12 +1141,12 @@ void CalculatorSolver::SolveComplex(const rapidjson::Document& request, rapidjso
         result_angle_measure = (AngleMeasure)request["complex_result_angle_measure"].GetInt();
     
     ComplexForm form = ComplexForm::Arithmetic;
-    if (request.HasMember("form") && request["form"].IsInt())
-        form = (ComplexForm)request["form"].GetInt();
+    if (request.HasMember("complex_form") && request["complex_form"].IsInt())
+        form = (ComplexForm)request["complex_form"].GetInt();
     
     int max_count = 10;
-    if (request.HasMember("max_count") && request["max_count"].IsInt())
-        max_count = request["max_count"].GetInt();
+    if (request.HasMember("complex_max_count") && request["complex_max_count"].IsInt())
+        max_count = request["complex_max_count"].GetInt();
 
     //solving
     std::vector<Complex> results;
