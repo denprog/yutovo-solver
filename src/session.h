@@ -15,7 +15,6 @@
 #include "service_context.h"
 #include <rapidjson/document.h>
 #include "types.h"
-#include <yutovo_editor/config.h>
 #include <yutovo_logger/logger.h>
 
 #ifdef REMOTE_MODE
@@ -37,7 +36,7 @@ using namespace yutovo;
 class Session
 {
 public:
-    Session(ServiceContext* _service_context, yutovo::Config& _config);
+    Session(ServiceContext* _service_context, const std::string& _logs_path, bool _log_console, bool _log_file);
 
     void Parse(const std::string& json, std::string& reply);
     void SetMaxTime(const uint64_t max_time);
@@ -50,7 +49,6 @@ protected:
 protected:
     static int sessions_count;
 
-    yutovo::Config& config;
     Logger* logger = nullptr;
 
 private:
