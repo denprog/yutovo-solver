@@ -8,7 +8,6 @@
 #include <fstream>
 #include "service_config.h"
 #include "service_solver.h"
-#include <yutovo_editor/config.h>
 
 #ifdef REMOTE_MODE
 namespace ssl = boost::asio::ssl;
@@ -20,8 +19,8 @@ namespace yutovo_solver
 
 struct ServiceContext
 {
-    ServiceContext(ServiceConfig* service_config, yutovo::Config& editor_config) :
-        solvers(service_config, editor_config)
+    ServiceContext(ServiceConfig* service_config, const std::string& _logs_path, bool _log_console, bool _log_file) :
+        solvers(service_config, _logs_path, _log_console, _log_file)
     {
     }
 
