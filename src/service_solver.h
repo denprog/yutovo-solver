@@ -6,7 +6,6 @@
 #include <mutex>
 #include <yutovo_logger/logger.h>
 #include <yutovo_calculator/parser.h>
-#include <yutovo_editor/config.h>
 #include "rapidjson/document.h"
 #include "types.h"
 
@@ -67,7 +66,8 @@ typedef std::shared_ptr<Solver> SolverPtr;
 class CalculatorSolver : public Solver
 {
 public:
-    CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time, yutovo::Config& _config);
+    CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time, 
+        const std::string& _logs_path, bool _log_console, bool _log_file);
     ~CalculatorSolver();
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
@@ -103,14 +103,14 @@ private:
 
     bool just_started = true;
 
-    yutovo::Config& config;
     Logger* logger = nullptr;
 };
 
 class PythonSolver : public Solver
 {
 public:
-    PythonSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time, yutovo::Config& _config);
+    PythonSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time, 
+        const std::string& _logs_path, bool _log_console, bool _log_file);
     ~PythonSolver();
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
@@ -121,14 +121,13 @@ public:
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply);
 
 private:
-    yutovo::Config& config;
     Logger* logger = nullptr;
 };
 
 class Solvers
 {
 public:
-    Solvers(ServiceConfig* _service_config, yutovo::Config& _editor_config);
+    Solvers(ServiceConfig* _service_config, const std::string& _logs_path, bool _log_console, bool _log_file);
 
     SolverPtr GetSolver(const std::string& guid, const int code_id, SolverType solver_type);
     void SetLocale(const std::string& guid, const yutovo_calculator::Language language, 
@@ -143,7 +142,10 @@ private:
     std::map<std::string, SolverLocale> solvers_locales; //by guid
 
     ServiceConfig* service_config;
-    yutovo::Config& editor_config;
+
+    const std::string logs_path;
+    bool log_console;
+    bool log_file;
 };
 
 }
