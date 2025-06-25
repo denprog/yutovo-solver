@@ -35,7 +35,7 @@ void Session::Parse(const std::string& json, std::string& reply)
 
     std::string command = request_json["command"].GetString();
     SolverPtr solver;
-    std::string guid;
+    std::string document_guid, solver_guid;
 
     if (command == "EXIT")
     {
@@ -46,12 +46,19 @@ void Session::Parse(const std::string& json, std::string& reply)
     else if (command == "SOLVE_CODE" || command == "REMOVE_IDENTIFIER" || command == "LIST_IDENTIFIERS" || command == "LIST_USER_IDENTIFIERS" || 
         command == "BREAK_SOLVING")
     {
-        if (!request_json.HasMember("guid") || !request_json["guid"].IsString())
+        if (!request_json.HasMember("document_guid") || !request_json["document_guid"].IsString())
         {
             MakeError(ErrorCode::NO_FIELD_ERROR, reply);
             return;
         }
-        guid = request_json["guid"].GetString();
+        document_guid = request_json["document_guid"].GetString();
+
+        if (!request_json.HasMember("solver_guid") || !request_json["solver_guid"].IsString())
+        {
+            MakeError(ErrorCode::NO_FIELD_ERROR, reply);
+            return;
+        }
+        solver_guid = request_json["solver_guid"].GetString();
 
         if (!request_json.HasMember("code_id") || !request_json["code_id"].IsInt())
         {
@@ -67,7 +74,7 @@ void Session::Parse(const std::string& json, std::string& reply)
         }
         SolverType solver_type = (SolverType)request_json["solver_type"].GetInt();
 
-        solver = service_context->solvers.GetSolver(guid, code_id, solver_type);
+        solver = service_context->solvers.GetSolver(document_guid, solver_guid, code_id, solver_type);
         if (!solver)
         {
             MakeError(ErrorCode::SOLVER_ERROR, reply);
@@ -94,14 +101,14 @@ void Session::Parse(const std::string& json, std::string& reply)
 
     if (command == "REMOVE_USER_IDENTIFIERS")
     {
-        if (!request_json.HasMember("guid") || !request_json["guid"].IsString())
+        if (!request_json.HasMember("solver_guid") || !request_json["solver_guid"].IsString())
         {
             MakeError(ErrorCode::NO_FIELD_ERROR, reply);
             return;
         }
-        guid = request_json["guid"].GetString();
+        solver_guid = request_json["solver_guid"].GetString();
 
-        service_context->solvers.RemoveUserIdentifiers(guid, request_json, response_json);
+        service_context->solvers.RemoveUserIdentifiers(solver_guid, request_json, response_json);
         MakeReply(response_json, reply);
         return;
     }
@@ -109,6 +116,20 @@ void Session::Parse(const std::string& json, std::string& reply)
     if (command == "LIST_IDENTIFIERS")
     {
         solver->ListIdentifiers(request_json, response_json);
+        MakeReply(response_json, reply);
+        return;
+    }
+
+    if (command == "CLEAR_EXPORT")
+    {
+        if (!request_json.HasMember("document_guid") || !request_json["document_guid"].IsString())
+        {
+            MakeError(ErrorCode::NO_FIELD_ERROR, reply);
+            return;
+        }
+        document_guid = request_json["document_guid"].GetString();
+
+        service_context->solvers.ClearExport(document_guid, request_json, response_json);
         MakeReply(response_json, reply);
         return;
     }
@@ -122,12 +143,12 @@ void Session::Parse(const std::string& json, std::string& reply)
 
     if (command == "SET_LOCALE")
     {
-        if (!request_json.HasMember("guid") || !request_json["guid"].IsString())
+        if (!request_json.HasMember("solver_guid") || !request_json["solver_guid"].IsString())
         {
             MakeError(ErrorCode::NO_FIELD_ERROR, reply);
             return;
         }
-        std::string guid = request_json["guid"].GetString();
+        std::string solver_guid = request_json["solver_guid"].GetString();
 
         if (!request_json.HasMember("language") || !request_json["language"].IsInt())
         {
@@ -137,7 +158,7 @@ void Session::Parse(const std::string& json, std::string& reply)
         }
         Language language = (Language)request_json["language"].GetInt();
 
-        service_context->solvers.SetLocale(guid, language, request_json, response_json);
+        service_context->solvers.SetLocale(solver_guid, language, request_json, response_json);
         MakeReply(response_json, reply);
         return;
     }
