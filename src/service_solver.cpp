@@ -11,8 +11,9 @@ namespace yutovo_solver
 
 //Solver
 
-Solver::Solver(const std::string& _guid, const yutovo_calculator::Language _language) :
-    guid(_guid),
+Solver::Solver(const std::string& _document_guid, const std::string& _solver_guid, const yutovo_calculator::Language _language) :
+    document_guid(_document_guid), 
+    solver_guid(_solver_guid),
     locale{_language}
 {
 }
@@ -209,22 +210,23 @@ bool Solver::GetUnit(const rapidjson::Document& request, Unit& unit)
 
 //CalculatorSolver
 
-CalculatorSolver::CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time, 
-    const std::string& _logs_path, bool _log_console, bool _log_file) :
-    Solver(_guid, _language),
+CalculatorSolver::CalculatorSolver(const std::string& _document_guid, const std::string& _solver_guid, ParserContextPtr _parser_context, 
+    const yutovo_calculator::Language _language, uint64_t _max_time, const std::string& _logs_path, bool _log_console, bool _log_file) :
+    Solver(_document_guid, _solver_guid, _language),
     real_parser(0, _language),
     integer_parser(0, _language),
     rational_parser(0, _language),
     complex_parser(0, _language),
+    parser_context(_parser_context),
     logger(Logger::GetInstance(_logs_path + "/yutovo_solver", "calculator_solver", _log_console, _log_file))
 {
     max_time = _max_time;
-    logger->Info("Calculator Solver started: {}", guid);
+    logger->Info("Calculator Solver started: {}", solver_guid);
 }
 
 CalculatorSolver::~CalculatorSolver()
 {
-    logger->Info("Calculator Solver finished: {}", guid);
+    logger->Info("Calculator Solver finished: {}", solver_guid);
 }
 
 void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Document& reply)
@@ -496,7 +498,7 @@ void CalculatorSolver::BreakSolving(const rapidjson::Document& request, rapidjso
         std::lock_guard<std::mutex> lock(solving_id_lock);
         if (id == solving_id && time_stamp >= solving_time_stamp)
         {
-            parser_context.break_solving = true; //break the current solving
+            parser_context->break_solving = true; //break the current solving
         }
         else
         {
@@ -555,7 +557,6 @@ void CalculatorSolver::RemoveUserIdentifiers(const rapidjson::Document& request,
     catch (yutovo_calculator::ParserException ex)
     {
         ReplyError(ex, reply);
-        return;
     }
 }
 
@@ -957,10 +958,10 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
     auto& alloc = reply.GetAllocator();
 
     //solving
-    parser_context.Init(max_time);
-    parser_context.no_result = false;
-    Real si_res = real_parser.Parse(solving_id, expression, dependencies, default_angle_measure, result_angle_measure, precision, &parser_context);
-    if (parser_context.no_result)
+    parser_context->Init(max_time);
+    parser_context->no_result = false;
+    Real si_res = real_parser.Parse(solving_id, expression, dependencies, default_angle_measure, result_angle_measure, precision, parser_context.get());
+    if (parser_context->no_result)
     {
         AddDependencies(reply, dependencies);
         reply.AddMember("result_type", (int)ResultType::NONE, alloc);
@@ -1019,10 +1020,10 @@ void CalculatorSolver::SolveInteger(const rapidjson::Document& request, rapidjso
 
     auto& alloc = reply.GetAllocator();
 
-    parser_context.Init(max_time);
-    parser_context.no_result = false;
-    yutovo_calculator::Integer res = integer_parser.Parse(solving_id, expression, dependencies, default_notation, &parser_context);
-    if (parser_context.no_result)
+    parser_context->Init(max_time);
+    parser_context->no_result = false;
+    yutovo_calculator::Integer res = integer_parser.Parse(solving_id, expression, dependencies, default_notation, parser_context.get());
+    if (parser_context->no_result)
     {
         AddDependencies(reply, dependencies);
         reply.AddMember("result_type", (int)ResultType::NONE, alloc);
@@ -1074,10 +1075,10 @@ void CalculatorSolver::SolveRational(const rapidjson::Document& request, rapidjs
 
     auto& alloc = reply.GetAllocator();
 
-    parser_context.Init(max_time);
-    parser_context.no_result = false;
-    Rational si_res = rational_parser.Parse(solving_id, expression, dependencies, &parser_context);
-    if (parser_context.no_result)
+    parser_context->Init(max_time);
+    parser_context->no_result = false;
+    Rational si_res = rational_parser.Parse(solving_id, expression, dependencies, parser_context.get());
+    if (parser_context->no_result)
     {
         AddDependencies(reply, dependencies);
         reply.AddMember("result_type", (int)ResultType::NONE, alloc);
@@ -1176,10 +1177,11 @@ void CalculatorSolver::SolveComplex(const rapidjson::Document& request, rapidjso
 
     //solving
     std::vector<Complex> results;
-    parser_context.Init(max_time);
-    parser_context.no_result = false;
-    complex_parser.Parse(solving_id, expression, dependencies, default_angle_measure, result_angle_measure, precision, max_count, results, &parser_context);
-    if (parser_context.no_result)
+    parser_context->Init(max_time);
+    parser_context->no_result = false;
+    complex_parser.Parse(solving_id, expression, dependencies, default_angle_measure, result_angle_measure, precision, max_count, results, 
+        parser_context.get());
+    if (parser_context->no_result)
     {
         AddDependencies(reply, dependencies);
         reply.AddMember("result_type", (int)ResultType::NONE, alloc);
@@ -1258,16 +1260,16 @@ void CalculatorSolver::AddReal(rapidjson::Document& reply, rapidjson::Value& obj
 
 //PythonSolver
 
-PythonSolver::PythonSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time, 
-    const std::string& _logs_path, bool _log_console, bool _log_file) :
-    Solver(_guid, _language),
-    logger(Logger::GetInstance(_logs_path + "/yutovo_solver", "calculator_solver", _log_console, _log_file))
+PythonSolver::PythonSolver(const std::string& _document_guid, const std::string& _solver_guid, const yutovo_calculator::Language _language, 
+    uint64_t _max_time, const std::string& _logs_path, bool _log_console, bool _log_file) :
+    Solver(_document_guid, _solver_guid, _language),
+    logger(Logger::GetInstance(_logs_path + "/yutovo_solver", "python_solver", _log_console, _log_file))
 {
 }
 
 PythonSolver::~PythonSolver()
 {
-    logger->Info("Python Solver finished: {}", guid);
+    logger->Info("Python Solver finished: {}", solver_guid);
 }
 
 void PythonSolver::Solve(const rapidjson::Document& request, rapidjson::Document& reply)
@@ -1299,6 +1301,8 @@ bool PythonSolver::SetLocale(const rapidjson::Document& request, rapidjson::Docu
 
 //Solvers
 
+std::map<std::string, ParserContextPtr> Solvers::parser_contexts;
+
 Solvers::Solvers(ServiceConfig* _service_config, const std::string& _logs_path, bool _log_console, bool _log_file) :
     service_config(_service_config),
     logs_path(_logs_path), 
@@ -1307,12 +1311,12 @@ Solvers::Solvers(ServiceConfig* _service_config, const std::string& _logs_path, 
 {
 }
 
-SolverPtr Solvers::GetSolver(const std::string& guid, const int code_id, SolverType solver_type)
+SolverPtr Solvers::GetSolver(const std::string& document_guid, const std::string& solver_guid, const int code_id, SolverType solver_type)
 {
     SolverLocale locale;
 
     std::lock_guard<std::mutex> lock(solvers_mutex);
-    auto it = solvers.find(guid);
+    auto it = solvers.find(solver_guid);
     if (it != solvers.end())
     {
         auto it_c = it->second.find(code_id);
@@ -1320,21 +1324,32 @@ SolverPtr Solvers::GetSolver(const std::string& guid, const int code_id, SolverT
             return it_c->second;
     }
     
-    auto it_l = solvers_locales.find(guid);
+    auto it_l = solvers_locales.find(solver_guid);
     if (it_l != solvers_locales.end())
         locale = it_l->second;
+
+    ParserContextPtr parser_context;
+    auto it_p = parser_contexts.find(document_guid);
+    if (it_p != parser_contexts.end())
+        parser_context = it_p->second;
+    else
+    {
+        parser_context.reset(new yutovo_calculator::ParserContext());
+        parser_contexts[document_guid] = parser_context;
+    }
     
     switch (solver_type)
     {
     case SolverType::CALCULATOR:
         {
-            std::string solver_id = guid + "-" + std::to_string(code_id);
-            SolverPtr solver(new CalculatorSolver(solver_id, locale.language, service_config->max_time, logs_path, log_console, log_file));
+            std::string solver_id = solver_guid + "-" + std::to_string(code_id);
+            SolverPtr solver(new CalculatorSolver(document_guid, solver_id, parser_context, locale.language, service_config->max_time, 
+                logs_path, log_console, log_file));
             if (it == solvers.end())
             {
                 std::map<int, SolverPtr> m;
                 m[code_id] = solver;
-                solvers[guid] = m;
+                solvers[solver_guid] = m;
             }
             else
             {
@@ -1350,28 +1365,49 @@ SolverPtr Solvers::GetSolver(const std::string& guid, const int code_id, SolverT
     return nullptr;
 }
 
-void Solvers::SetLocale(const std::string& guid, const yutovo_calculator::Language language, 
+void Solvers::SetLocale(const std::string& solver_guid, const yutovo_calculator::Language language, 
     const rapidjson::Document& request, rapidjson::Document& reply)
 {
     std::lock_guard<std::mutex> lock(solvers_mutex);
-    auto it = solvers.find(guid);
+    auto it = solvers.find(solver_guid);
     if (it != solvers.end())
     {
         for (auto& [code_id, solver] : it->second)
             solver->SetLocale(request, reply);
     }
 
-    solvers_locales[guid] = SolverLocale{language};
+    solvers_locales[solver_guid] = SolverLocale{language};
 }
 
-void Solvers::RemoveUserIdentifiers(const std::string& guid, const rapidjson::Document& request, rapidjson::Document& reply)
+void Solvers::RemoveUserIdentifiers(const std::string& solver_guid, const rapidjson::Document& request, rapidjson::Document& reply)
 {
     std::lock_guard<std::mutex> lock(solvers_mutex);
-    auto it = solvers.find(guid);
+    auto it = solvers.find(solver_guid);
     if (it != solvers.end())
     {
         for (auto& [code_id, solver] : it->second)
             solver->RemoveUserIdentifiers(request, reply);
+    }
+}
+
+void Solvers::ClearExport(const std::string& document_guid, const rapidjson::Document& request, rapidjson::Document& reply)
+{
+    std::lock_guard<std::mutex> lock(solvers_mutex);
+    auto it = parser_contexts.find(document_guid);
+    if (it != parser_contexts.end())
+    {
+        it->second->exports->variables_integer.clear();
+        it->second->exports->variables_real.clear();
+        it->second->exports->variables_rational.clear();
+        it->second->exports->variables_complex.clear();
+
+        it->second->exports->functions_integer.clear();
+        it->second->exports->functions_real.clear();
+        it->second->exports->functions_rational.clear();
+        it->second->exports->functions_complex.clear();
+
+        it->second->exports->units_real.clear();
+        it->second->exports->units_rational.clear();
     }
 }
 
@@ -1388,6 +1424,7 @@ void Solvers::SetMaxTime(const uint64_t max_time)
 void Solvers::RemoveTimeouted()
 {
     std::lock_guard<std::mutex> lock(solvers_mutex);
+    //remove unusing solvers
     for (auto it = solvers.begin(); it != solvers.end(); ++it)
     {
         auto& m = it->second;
@@ -1396,11 +1433,31 @@ void Solvers::RemoveTimeouted()
             SolverPtr& s = it_s->second;
             if (time(nullptr) - s->idle_time > service_config->solver_idle_timeout)
             {
-                m.erase(it_s++);
+                m.erase(it_s++); //remove solver
                 continue;
             }
             ++it_s;
         }
+    }
+
+    //remove unusing parser contexts
+    for (auto it_p = parser_contexts.begin(); it_p != parser_contexts.end();)
+    {
+        auto& document_guid = it_p->first;
+        auto it = std::find_if(solvers.begin(), solvers.end(), 
+            [document_guid](auto& s)
+            {
+                auto it_s = std::find_if(s.second.begin(), s.second.end(), 
+                    [document_guid](auto& solver)
+                    {
+                        return solver.second->document_guid == document_guid;
+                    });
+                return it_s != s.second.end();
+            });
+        if (it == solvers.end())
+            it_p = parser_contexts.erase(it_p);
+        else
+            ++it_p;
     }
 }
 

@@ -25,7 +25,7 @@ struct SolverLocale
 class Solver
 {
 public:
-    Solver(const std::string& _guid, const yutovo_calculator::Language _language);
+    Solver(const std::string& _document_guid, const std::string& _solver_guid, const yutovo_calculator::Language _language);
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual void BreakSolving(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
@@ -54,7 +54,8 @@ protected:
 public:
     time_t idle_time = time(nullptr);
 
-    std::string guid;
+    std::string document_guid;
+    std::string solver_guid;
     SolverLocale locale;
 
 protected:
@@ -62,12 +63,13 @@ protected:
 };
 
 typedef std::shared_ptr<Solver> SolverPtr;
+typedef std::shared_ptr<yutovo_calculator::ParserContext> ParserContextPtr;
 
 class CalculatorSolver : public Solver
 {
 public:
-    CalculatorSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time, 
-        const std::string& _logs_path, bool _log_console, bool _log_file);
+    CalculatorSolver(const std::string& _document_guid, const std::string& _solver_guid, ParserContextPtr _parser_context, 
+        const yutovo_calculator::Language _language, uint64_t _max_time, const std::string& _logs_path, bool _log_console, bool _log_file);
     ~CalculatorSolver();
 
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply);
@@ -92,7 +94,7 @@ private:
     yutovo_calculator::Parser<yutovo_calculator::Rational> rational_parser;
     yutovo_calculator::Parser<yutovo_calculator::Complex> complex_parser;
 
-    yutovo_calculator::ParserContext parser_context;
+    ParserContextPtr parser_context;
 
     std::mutex solving_id_lock;
     LogicalId solving_id;
@@ -109,7 +111,7 @@ private:
 class PythonSolver : public Solver
 {
 public:
-    PythonSolver(const std::string& _guid, const yutovo_calculator::Language _language, uint64_t _max_time, 
+    PythonSolver(const std::string& _document_guid, const std::string& _solver_guid, const yutovo_calculator::Language _language, uint64_t _max_time, 
         const std::string& _logs_path, bool _log_console, bool _log_file);
     ~PythonSolver();
 
@@ -129,17 +131,19 @@ class Solvers
 public:
     Solvers(ServiceConfig* _service_config, const std::string& _logs_path, bool _log_console, bool _log_file);
 
-    SolverPtr GetSolver(const std::string& guid, const int code_id, SolverType solver_type);
-    void SetLocale(const std::string& guid, const yutovo_calculator::Language language, 
+    SolverPtr GetSolver(const std::string& document_guid, const std::string& solver_guid, const int code_id, SolverType solver_type);
+    void SetLocale(const std::string& solver_guid, const yutovo_calculator::Language language, 
         const rapidjson::Document& request, rapidjson::Document& reply);
-    void RemoveUserIdentifiers(const std::string& guid, const rapidjson::Document& request, rapidjson::Document& reply);
+    void RemoveUserIdentifiers(const std::string& solver_guid, const rapidjson::Document& request, rapidjson::Document& reply);
+    void ClearExport(const std::string& document_guid, const rapidjson::Document& request, rapidjson::Document& reply);
     void SetMaxTime(const uint64_t max_time);
     void RemoveTimeouted();
 
 private:
     std::mutex solvers_mutex;
-    std::map<std::string, std::map<int, SolverPtr>> solvers; //by guid and by code_id
-    std::map<std::string, SolverLocale> solvers_locales; //by guid
+    std::map<std::string, std::map<int, SolverPtr>> solvers; //by solver guid and by code_id
+    std::map<std::string, SolverLocale> solvers_locales; //by solver guid
+    static std::map<std::string, ParserContextPtr> parser_contexts; //by document guid
 
     ServiceConfig* service_config;
 
