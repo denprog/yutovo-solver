@@ -955,11 +955,16 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
     if (request.HasMember("real_result_angle_measure") && request["real_result_angle_measure"].IsInt())
         result_angle_measure = (AngleMeasure)request["real_result_angle_measure"].GetInt();
 
+    bool include_document = false;
+    if (request.HasMember("include_document") && request["include_document"].IsBool())
+        include_document = request["include_document"].GetBool();
+
     auto& alloc = reply.GetAllocator();
 
     //solving
     parser_context->Init(max_time);
     parser_context->no_result = false;
+    parser_context->include_document = include_document;
     Real si_res = real_parser.Parse(solving_id, expression, dependencies, default_angle_measure, result_angle_measure, precision, parser_context.get());
     if (parser_context->no_result)
     {
@@ -1395,20 +1400,7 @@ void Solvers::ClearExport(const std::string& document_guid, const rapidjson::Doc
     std::lock_guard<std::mutex> lock(solvers_mutex);
     auto it = parser_contexts.find(document_guid);
     if (it != parser_contexts.end())
-    {
-        it->second->exports->variables_integer.clear();
-        it->second->exports->variables_real.clear();
-        it->second->exports->variables_rational.clear();
-        it->second->exports->variables_complex.clear();
-
-        it->second->exports->functions_integer.clear();
-        it->second->exports->functions_real.clear();
-        it->second->exports->functions_rational.clear();
-        it->second->exports->functions_complex.clear();
-
-        it->second->exports->units_real.clear();
-        it->second->exports->units_rational.clear();
-    }
+        it->second->exports->Clear();
 }
 
 void Solvers::SetMaxTime(const uint64_t max_time)
