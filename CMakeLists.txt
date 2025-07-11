@@ -5,7 +5,9 @@ project(yutovo_solver
     LANGUAGES CXX
 )
 
-add_compile_definitions(DEBUG)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_compile_definitions(DEBUG)
+endif()
 
 if(WIN32)
     set(INSTALL_PATH "c:/Lang/vcpkg/installed/x64-windows")
