@@ -132,6 +132,8 @@ public:
     Solvers(ServiceConfig* _service_config, const std::string& _logs_path, bool _log_console, bool _log_file);
 
     SolverPtr GetSolver(const std::string& document_guid, const std::string& solver_guid, const int code_id, SolverType solver_type);
+    bool RemoveSolver(const std::string& solver_guid, const int code_id);
+
     void SetLocale(const std::string& solver_guid, const yutovo_calculator::Language language, 
         const rapidjson::Document& request, rapidjson::Document& reply);
     void RemoveUserIdentifiers(const std::string& solver_guid, const rapidjson::Document& request, rapidjson::Document& reply);
