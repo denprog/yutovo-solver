@@ -43,6 +43,27 @@ void Session::Parse(const std::string& json, std::string& reply)
         MakeOk(reply);
         return;
     }
+    else if (command == "REMOVE_SOLVER")
+    {
+        if (!request_json.HasMember("solver_guid") || !request_json["solver_guid"].IsString())
+        {
+            MakeError(ErrorCode::NO_FIELD_ERROR, reply);
+            return;
+        }
+        solver_guid = request_json["solver_guid"].GetString();
+
+        if (!request_json.HasMember("code_id") || !request_json["code_id"].IsInt())
+        {
+            MakeError(ErrorCode::NO_FIELD_ERROR, reply);
+            return;
+        }
+        int code_id = request_json["code_id"].GetInt();
+        if (!service_context->solvers.RemoveSolver(solver_guid, code_id))
+            MakeError(ErrorCode::SOLVER_ERROR, reply);
+        else
+            MakeOk(reply);
+        return;
+    }
     else if (command == "SOLVE_CODE" || command == "REMOVE_IDENTIFIER" || command == "LIST_IDENTIFIERS" || command == "LIST_USER_IDENTIFIERS" || 
         command == "BREAK_SOLVING")
     {

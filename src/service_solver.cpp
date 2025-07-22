@@ -1370,6 +1370,22 @@ SolverPtr Solvers::GetSolver(const std::string& document_guid, const std::string
     return nullptr;
 }
 
+bool Solvers::RemoveSolver(const std::string& solver_guid, const int code_id)
+{
+    std::lock_guard<std::mutex> lock(solvers_mutex);
+    auto it = solvers.find(solver_guid);
+    if (it != solvers.end())
+    {
+        auto it_c = it->second.find(code_id);
+        if (it_c != it->second.end())
+        {
+            it->second.erase(it_c);
+            return true;
+        }
+    }
+    return false;
+}
+
 void Solvers::SetLocale(const std::string& solver_guid, const yutovo_calculator::Language language, 
     const rapidjson::Document& request, rapidjson::Document& reply)
 {
