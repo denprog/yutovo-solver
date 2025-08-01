@@ -217,6 +217,7 @@ CalculatorSolver::CalculatorSolver(const std::string& _document_guid, const std:
     integer_parser(0, _language),
     rational_parser(0, _language),
     complex_parser(0, _language),
+    array_real_parser(0, _language),
     parser_context(_parser_context),
     logger(Logger::GetInstance(_logs_path + "/yutovo_solver", "calculator_solver", _log_console, _log_file))
 {
@@ -375,6 +376,17 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                             user_symbol_success = true;
                         }
                         break;
+                    case ResultType::ARRAY_REAL:
+                        SolveArrayReal(request, r, &dependencies);
+                        reply.CopyFrom(r, reply.GetAllocator());
+                        if (exit_on_success)
+                            return;
+                        if (expression_type == ExpressionType::USER_SYMBOL && !user_symbol_success)
+                        {
+                            user_symbol_reply.CopyFrom(reply, reply.GetAllocator());
+                            user_symbol_success = true;
+                        }
+                        break;
                     case ResultType::AUTO:
                     case ResultType::NONE:
                         ReplyError(ErrorCode::OPERATION_ERROR, reply);
@@ -440,6 +452,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
     case ResultType::INTEGER:
     case ResultType::RATIONAL:
     case ResultType::COMPLEX:
+    case ResultType::ARRAY_REAL:
         try
         {
             std::lock_guard<std::mutex> lock(parsers_lock);
@@ -456,6 +469,9 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                 break;
             case ResultType::COMPLEX:
                 SolveComplex(request, reply, &dependencies);
+                break;
+            case ResultType::ARRAY_REAL:
+                SolveArrayReal(request, reply, &dependencies);
                 break;
             case ResultType::AUTO:
             case ResultType::NONE:
@@ -534,6 +550,7 @@ void CalculatorSolver::RemoveIdentifier(const rapidjson::Document& request, rapi
         integer_parser.RemoveIdentifier(id, identifier);
         rational_parser.RemoveIdentifier(id, identifier);
         complex_parser.RemoveIdentifier(id, identifier);
+        array_real_parser.RemoveIdentifier(id, identifier);
     }
     catch (yutovo_calculator::ParserException ex)
     {
@@ -553,6 +570,7 @@ void CalculatorSolver::RemoveUserIdentifiers(const rapidjson::Document& request,
         integer_parser.RemoveUserIdentifiers();
         rational_parser.RemoveUserIdentifiers();
         complex_parser.RemoveUserIdentifiers();
+        array_real_parser.RemoveUserIdentifiers();
     }
     catch (yutovo_calculator::ParserException ex)
     {
@@ -573,12 +591,14 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
     integer_parser.ListBuiltinVariables(builtin_variables);
     rational_parser.ListBuiltinVariables(builtin_variables);
     complex_parser.ListBuiltinVariables(builtin_variables);
+    array_real_parser.ListBuiltinVariables(builtin_variables);
 
     std::vector<std::pair<std::u32string, std::u32string>> user_variables;
     real_parser.ListUserVariables(user_variables);
     integer_parser.ListUserVariables(user_variables);
     rational_parser.ListUserVariables(user_variables);
     complex_parser.ListUserVariables(user_variables);
+    array_real_parser.ListUserVariables(user_variables);
 
     std::sort(builtin_variables.begin(), builtin_variables.end());
     builtin_variables.erase(std::unique(builtin_variables.begin(), builtin_variables.end()), builtin_variables.end());
@@ -611,6 +631,7 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
     integer_parser.ListBuiltinFunctions(builtin_functions);
     rational_parser.ListBuiltinFunctions(builtin_functions);
     complex_parser.ListBuiltinFunctions(builtin_functions);
+    array_real_parser.ListBuiltinFunctions(builtin_functions);
 
     //remove duplicates
     std::sort(builtin_functions.begin(), builtin_functions.end());
@@ -629,6 +650,7 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
     integer_parser.ListUserFunctions(user_functions);
     rational_parser.ListUserFunctions(user_functions);
     complex_parser.ListUserFunctions(user_functions);
+    array_real_parser.ListUserFunctions(user_functions);
 
     //remove duplicates
     std::sort(user_functions.begin(), user_functions.end());
@@ -923,6 +945,7 @@ bool CalculatorSolver::SetLocale(const rapidjson::Document& request, rapidjson::
         integer_parser.SetLocale(locale.language);
         rational_parser.SetLocale(locale.language);
         complex_parser.SetLocale(locale.language);
+        array_real_parser.SetLocale(locale.language);
     }
     catch (yutovo_calculator::ParserException ex)
     {
@@ -1234,6 +1257,95 @@ void CalculatorSolver::SolveComplex(const rapidjson::Document& request, rapidjso
     }
 
     reply.AddMember("results", results_arr, alloc);
+
+    AddDependencies(reply, dependencies);
+}
+
+void CalculatorSolver::SolveArrayReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
+{
+    std::string expression = request["expression"].GetString();
+    
+    int precision = 3;
+    if (request.HasMember("real_precision") && request["real_precision"].IsInt())
+        precision = request["real_precision"].GetInt();
+    if (precision <= 0)
+        precision = 3;
+
+    int exponent_size = 3;
+    if (request.HasMember("real_exponent_size") && request["real_exponent_size"].IsInt())
+        exponent_size = request["real_exponent_size"].GetInt();
+
+    AngleMeasure default_angle_measure = AngleMeasure::None;
+    if (request.HasMember("real_default_angle_measure") && request["real_default_angle_measure"].IsInt())
+        default_angle_measure = (AngleMeasure)request["real_default_angle_measure"].GetInt();
+
+    AngleMeasure result_angle_measure = AngleMeasure::None;
+    if (request.HasMember("real_result_angle_measure") && request["real_result_angle_measure"].IsInt())
+        result_angle_measure = (AngleMeasure)request["real_result_angle_measure"].GetInt();
+
+    bool include_document = false;
+    if (request.HasMember("include_document") && request["include_document"].IsBool())
+        include_document = request["include_document"].GetBool();
+
+    auto& alloc = reply.GetAllocator();
+
+    //solving
+    parser_context->Init(max_time);
+    parser_context->no_result = false;
+    parser_context->include_document = include_document;
+    Array<Real> si_res = array_real_parser.Parse(solving_id, expression, dependencies, default_angle_measure, result_angle_measure, precision, 
+        parser_context.get());
+    if (parser_context->no_result)
+    {
+        AddDependencies(reply, dependencies);
+        reply.AddMember("result_type", (int)ResultType::NONE, alloc);
+        return;
+    }
+
+    bool mantissa_sign;
+    std::string mantissa;
+    bool exponent_sign;
+    std::string exponent;
+
+    reply.AddMember("result_type", (int)ResultType::ARRAY_REAL, alloc);
+
+    rapidjson::Value r_arr(rapidjson::kArrayType);
+
+    for (int i = 0; i < si_res.Size(); ++i)
+    {
+        Real r = si_res.Get(i);
+
+        Unit unit;
+        if (GetUnit(request, unit))
+            r = real_parser.CastToUnit(solving_id, r, unit);
+        else
+            r = real_parser.GetSuitableUnit(solving_id, r);
+
+        r.ToString(exponent_size, precision, mantissa_sign, mantissa, exponent_sign, exponent);
+        if (mantissa_sign)
+            mantissa.insert(mantissa.begin(), '-');
+        
+        rapidjson::Value obj(rapidjson::kObjectType);
+
+        rapidjson::Value m(rapidjson::kStringType);
+        m.SetString(mantissa.c_str(), mantissa.size(), alloc);
+        obj.AddMember("mantissa", m, alloc);
+        if (exponent_sign)
+            exponent.insert(exponent.begin(), '-');
+        if (exponent != "")
+        {
+            rapidjson::Value e(rapidjson::kStringType);
+            e.SetString(exponent.c_str(), exponent.size(), alloc);
+            obj.AddMember("exponent", e, alloc);
+        }
+        if (r.GetAngleMeasure() != AngleMeasure::None)
+            obj.AddMember("angle_measure", (int)r.GetAngleMeasure(), alloc);
+        
+        r_arr.PushBack(obj, alloc);
+    }
+
+    rapidjson::Value r_obj(rapidjson::kObjectType);
+    reply.AddMember("results", r_arr, alloc);
 
     AddDependencies(reply, dependencies);
 }
