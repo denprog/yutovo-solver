@@ -57,12 +57,11 @@ void Solver::ReplyError(const yutovo_calculator::ParserException& ex, rapidjson:
     reply.AddMember("error", error, alloc);
 }
 
-void Solver::AddUnit(rapidjson::Document& reply, const Unit& unit)
+void Solver::AddUnit(rapidjson::Value& reply, const Unit& unit, rapidjson::Document::AllocatorType& alloc)
 {
     if (unit.IsEmpty())
         return;
 
-    auto& alloc = reply.GetAllocator();
     rapidjson::Value _unit;
     _unit.SetObject();
     rapidjson::Value d(rapidjson::kArrayType);
@@ -1024,7 +1023,7 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
         reply.AddMember("exponent", e, alloc);
     }
 
-    AddUnit(reply, res.unit);
+    AddUnit(reply, res.unit, reply.GetAllocator());
 
     if (!si_res.unit.IsEmpty())
     {
@@ -1159,7 +1158,7 @@ void CalculatorSolver::SolveRational(const rapidjson::Document& request, rapidjs
         reply.AddMember("denomerator", d, alloc);
     }
 
-    AddUnit(reply, res.unit);
+    AddUnit(reply, res.unit, reply.GetAllocator());
 
     if (!si_res.unit.IsEmpty())
     {
@@ -1315,6 +1314,7 @@ void CalculatorSolver::SolveArrayReal(const rapidjson::Document& request, rapidj
     {
         Real r = si_res.Get(i);
 
+        real_parser.ClearCastUnits();
         Unit unit;
         if (GetUnit(request, unit))
             r = real_parser.CastToUnit(solving_id, r, unit);
@@ -1340,6 +1340,8 @@ void CalculatorSolver::SolveArrayReal(const rapidjson::Document& request, rapidj
         }
         if (r.GetAngleMeasure() != AngleMeasure::None)
             obj.AddMember("angle_measure", (int)r.GetAngleMeasure(), alloc);
+        
+        AddUnit(obj, r.unit, reply.GetAllocator());
         
         r_arr.PushBack(obj, alloc);
     }

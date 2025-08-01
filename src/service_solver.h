@@ -40,7 +40,7 @@ protected:
     void ReplyError(const ErrorCode error_code, rapidjson::Document& reply);
     void ReplyError(const yutovo_calculator::ParserException& ex, rapidjson::Document& reply);
 
-    void AddUnit(rapidjson::Document& reply, const Unit& unit);
+    void AddUnit(rapidjson::Value& reply, const Unit& unit, rapidjson::Document::AllocatorType& alloc);
     void AddCastUnits(rapidjson::Document& reply, const std::vector<Unit>& cast_units);
     void AddDependencies(rapidjson::Document& reply, const std::vector<std::u32string>* dependencies);
 
