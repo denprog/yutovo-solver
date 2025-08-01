@@ -30,7 +30,8 @@ enum class ResultType
 	INTEGER, 
 	RATIONAL, 
 	COMPLEX, 
-	AUTO
+	AUTO,
+    ARRAY_REAL
 };
 
 enum class ErrorCode
