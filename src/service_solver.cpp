@@ -296,6 +296,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                 results_order.push_back(ResultType::INTEGER);
                 results_order.push_back(ResultType::RATIONAL);
                 results_order.push_back(ResultType::COMPLEX);
+                results_order.push_back(ResultType::ARRAY_REAL);
                 exit_on_success = false;
             }
             else
