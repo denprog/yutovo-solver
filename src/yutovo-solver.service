@@ -4,8 +4,8 @@ Description=Yutovo solver
 [Service]
 User=denis
 Group=denis
-ExecStart=/opt/yutovo/yutovo_solver/yutovo_solverd
-WorkingDirectory=/opt/yutovo/yutovo_solver/
+ExecStart=/opt/yutovo/yutovo-solver/yutovo-solverd
+WorkingDirectory=/opt/yutovo/yutovo-solver/
 Type=notify
 Restart=always
 RestartSec=5

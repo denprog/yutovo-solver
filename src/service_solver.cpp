@@ -1,6 +1,6 @@
 #include "service_solver.h"
 #include "service_config.h"
-#include <yutovo_calculator/integer.h>
+#include <yutovo-calculator/integer.h>
 
 #ifdef _MSC_VER
 #undef GetObject
@@ -218,7 +218,7 @@ CalculatorSolver::CalculatorSolver(const std::string& _document_guid, const std:
     complex_parser(0, _language),
     array_real_parser(0, _language),
     parser_context(_parser_context),
-    logger(Logger::GetInstance(_logs_path + "/yutovo_solver", "calculator_solver", _log_console, _log_file))
+    logger(Logger::GetInstance(_logs_path + "/yutovo-solver", "calculator-solver", _log_console, _log_file))
 {
     max_time = _max_time;
     logger->Info("Calculator Solver started: {}", solver_guid);
@@ -1383,7 +1383,7 @@ void CalculatorSolver::AddReal(rapidjson::Document& reply, rapidjson::Value& obj
 PythonSolver::PythonSolver(const std::string& _document_guid, const std::string& _solver_guid, const yutovo_calculator::Language _language, 
     uint64_t _max_time, const std::string& _logs_path, bool _log_console, bool _log_file) :
     Solver(_document_guid, _solver_guid, _language),
-    logger(Logger::GetInstance(_logs_path + "/yutovo_solver", "python_solver", _log_console, _log_file))
+    logger(Logger::GetInstance(_logs_path + "/yutovo-solver", "python-solver", _log_console, _log_file))
 {
 }
 

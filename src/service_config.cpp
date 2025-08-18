@@ -1,5 +1,5 @@
 #include "service_config.h"
-#include <yutovo_logger/logger.h>
+#include <yutovo-logger/logger.h>
 #include <boost/property_tree/ini_parser.hpp>
 
 namespace yutovo_solver

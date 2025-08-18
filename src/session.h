@@ -15,7 +15,7 @@
 #include "service_context.h"
 #include <rapidjson/document.h>
 #include "types.h"
-#include <yutovo_logger/logger.h>
+#include <yutovo-logger/logger.h>
 
 #ifdef REMOTE_MODE
 using tcp = boost::asio::ip::tcp;
