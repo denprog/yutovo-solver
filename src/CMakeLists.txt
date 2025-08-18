@@ -19,8 +19,8 @@ if(WIN32)
 endif()
 
 find_package(PkgConfig REQUIRED)
-find_package(yutovo_calculator REQUIRED)
-find_package(yutovo_logger REQUIRED)
+find_package(yutovo-calculator REQUIRED)
+find_package(yutovo-logger REQUIRED)
 if(WIN32)
     pkg_check_modules(mpfr REQUIRED IMPORTED_TARGET mpfr)
     find_package(RapidJSON CONFIG REQUIRED)
@@ -73,22 +73,22 @@ if(REMOTE_MODE)
         pthread
         ssl
         crypto
-        yutovo_calculator
-        yutovo_logger
+        yutovo-calculator
+        yutovo-logger
     )
 else()
     if(WIN32)
         target_link_libraries(${PROJECT_NAME} PRIVATE
-            yutovo_calculator
-            yutovo_logger
+            yutovo-calculator
+            yutovo-logger
         )
         target_link_libraries(${PROJECT_NAME} PRIVATE RapidJSON rapidjson)
     else()
         target_link_libraries(${PROJECT_NAME} PRIVATE
             stdc++
             pthread
-            yutovo_calculator
-            yutovo_logger
+            yutovo-calculator
+            yutovo-logger
         )
     endif()
 endif()
@@ -168,11 +168,11 @@ endif()
 
 if(NOT WIN32)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../keys/yutovo_solver.crt ${CMAKE_CURRENT_BINARY_DIR}/../
-        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../keys/yutovo_solver.key ${CMAKE_CURRENT_BINARY_DIR}/../
-        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../keys/yutovo_solver.pub ${CMAKE_CURRENT_BINARY_DIR}/../
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../keys/yutovo-solver.crt ${CMAKE_CURRENT_BINARY_DIR}/../
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../keys/yutovo-solver.key ${CMAKE_CURRENT_BINARY_DIR}/../
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../keys/yutovo-solver.pub ${CMAKE_CURRENT_BINARY_DIR}/../
     )
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/yutovo_solver.ini ${CMAKE_CURRENT_BINARY_DIR}/../
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/yutovo-solver.ini ${CMAKE_CURRENT_BINARY_DIR}/../
     )
 endif()

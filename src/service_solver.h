@@ -4,8 +4,8 @@
 #include <map>
 #include <memory>
 #include <mutex>
-#include <yutovo_logger/logger.h>
-#include <yutovo_calculator/parser.h>
+#include <yutovo-logger/logger.h>
+#include <yutovo-calculator/parser.h>
 #include "rapidjson/document.h"
 #include "types.h"
 

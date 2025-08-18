@@ -13,7 +13,7 @@ int Session::sessions_count = 0;
 
 Session::Session(ServiceContext* _service_context, const std::string& _logs_path, bool _log_console, bool _log_file) :
     service_context(_service_context),
-    logger(Logger::GetInstance(_logs_path + "/yutovo_solver", "yutovo_solver", _log_console, _log_file))
+    logger(Logger::GetInstance(_logs_path + "/yutovo-solver", "yutovo-solver", _log_console, _log_file))
 {
 }
 
