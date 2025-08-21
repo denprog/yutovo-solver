@@ -5,13 +5,6 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
-/*
- * Yutovo Solver
- * Copyright (C) 2022-2025 Yutovo developers. All rights reserved.
- * This file is a part of the Yutovo project
- * SPDX-License-Identifier: GPL-3.0-only
- */
-
 #include "service_config.h"
 #include <yutovo-logger/logger.h>
 #include <boost/property_tree/ini_parser.hpp>
