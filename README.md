@@ -31,3 +31,61 @@ cd build/debug
 cmake -DCMAKE_BUILD_TYPE=Debug ../..
 make -sj && make install
 ```
+
+## Building for Emscripten
+
+If you haven't yet, build [yutovo-logger](https://github.com/denprog/yutovo-logger) and [yutovo-calculator](https://github.com/denprog/yutovo-calculator).
+
+Clone the project in the yutovo dir (select another branch if you want):
+
+```
+cd yutovo
+git clone -b develop https://github.com/denprog/yutovo-solver.git
+```
+
+Create the build directory:
+
+```
+cd yutovo-solver
+mkdir -p build_web/debug
+cd build_web/debug
+```
+Set these variables:
+
+```
+export YUTOVO_DEPLOY=~/yutovo/deploy
+source ~/emsdk/emsdk_env.sh
+```
+
+Build the project:
+
+```
+emcmake cmake -DCMAKE_BUILD_TYPE=Debug ../..
+make -sj && make install
+```
+
+## Building for Windows
+
+If you haven't yet, build [yutovo-logger](https://github.com/denprog/yutovo-logger) and [yutovo-calculator](https://github.com/denprog/yutovo-calculator).
+
+Clone the project in the yutovo dir (select another branch if you want):
+
+```
+cd yutovo
+git clone -b develop https://github.com/denprog/yutovo-solver.git
+```
+
+Create the build directory:
+
+```
+cd yutovo-solver
+mkdir -p build/debug
+cd build/debug
+```
+
+Build the project:
+
+```
+cmake -DCMAKE_BUILD_TYPE=Debug ../..
+make -sj && make install
+```
