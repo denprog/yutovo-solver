@@ -801,9 +801,15 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
     units[1].AddCategory(U"time");
     units[1].AddCategory(U"volume");
 
+    units.push_back(Units(U"us"));
+    units[2].AddCategory(U"length");
+    units[2].AddCategory(U"mass");
+    units[2].AddCategory(U"time");
+    units[2].AddCategory(U"volume");
+
     units.push_back(Units(U"Others"));
-    units[2].AddCategory(U"information");
-    units[2].AddCategory(U"rest");
+    units[3].AddCategory(U"information");
+    units[3].AddCategory(U"rest");
 
     std::vector<CustomUnit<yutovo_calculator::Real>> real_units;
     real_parser.ListUserUnits(real_units);
@@ -925,8 +931,8 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
         auto s = system.system;
         if (s == U"rus")
             s = U"Russian";
-        else if (s == U"eng")
-            s = U"English";
+        else if (s == U"us")
+            s = U"American";
         m.SetString((boost::locale::conv::utf_to_utf<char>(s)).c_str(), alloc);
         p.AddMember(m, system_arr, alloc);
         units_arr.PushBack(p, alloc);
