@@ -518,6 +518,10 @@ void CalculatorSolver::BreakSolving(const rapidjson::Document& request, rapidjso
     uint64_t time_stamp = 0;
     GetTimestamp(request, time_stamp);
 
+    bool wait = true;
+    if (request.HasMember("wait") || request["wait"].IsBool())
+        wait = request["wait"].GetBool();
+
     reply.SetObject();
 
     {
@@ -526,7 +530,7 @@ void CalculatorSolver::BreakSolving(const rapidjson::Document& request, rapidjso
         {
             parser_context->break_solving = true; //break the current solving
         }
-        else
+        else if (wait)
         {
             //delay breaking the future solving
             std::lock_guard<std::mutex> l(break_lock);
