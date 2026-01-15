@@ -8,6 +8,7 @@ project(yutovo-solver
 set(PROJECT_LICENSE "GPL-3.0-only")
 
 message(STATUS "Project license: ${PROJECT_LICENSE}")
+message(STATUS "CXX Compiler ID: ${CMAKE_CXX_COMPILER_ID}")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_compile_definitions(DEBUG)
