@@ -42,7 +42,7 @@ else()
 endif()
 
 if(WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8 /bigobj")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8 /bigobj /EHsc")
 else()
     if (NOT DEFINED EMSCRIPTEN)
         if (CMAKE_BUILD_TYPE STREQUAL "Debug")
