@@ -600,7 +600,7 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
 
     std::lock_guard<std::mutex> lock(parsers_lock);
     //collect all the identifiers from all the parsers
-    std::vector<std::u32string> builtin_functions, user_functions, builtin_variables;
+    std::vector<std::u32string> builtin_functions, user_functions, builtin_variables, builtin_operations, user_strings;
     real_parser.ListBuiltinVariables(builtin_variables);
     integer_parser.ListBuiltinVariables(builtin_variables);
     rational_parser.ListBuiltinVariables(builtin_variables);
@@ -679,6 +679,48 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
     }
 
     reply.AddMember("Functions", functions_arr, alloc);
+
+    real_parser.ListBuiltinOperations(builtin_operations);
+    integer_parser.ListBuiltinOperations(builtin_operations);
+    rational_parser.ListBuiltinOperations(builtin_operations);
+    complex_parser.ListBuiltinOperations(builtin_operations);
+    array_real_parser.ListBuiltinOperations(builtin_operations);
+
+    //remove duplicates
+    std::sort(builtin_operations.begin(), builtin_operations.end());
+    builtin_operations.erase(std::unique(builtin_operations.begin(), builtin_operations.end()), builtin_operations.end());
+
+    rapidjson::Value operations_arr(rapidjson::kArrayType);
+    for (auto& f : builtin_operations)
+    {
+        rapidjson::Value op;
+        op.SetObject();
+        op.AddMember("name", rapidjson::Value((boost::locale::conv::utf_to_utf<char>(f)).c_str(), alloc), alloc);
+        operations_arr.PushBack(op, alloc);
+    }
+
+    reply.AddMember("Operations", operations_arr, alloc);
+
+    real_parser.ListUserStrings(user_strings);
+    integer_parser.ListUserStrings(user_strings);
+    rational_parser.ListUserStrings(user_strings);
+    complex_parser.ListUserStrings(user_strings);
+    array_real_parser.ListUserStrings(user_strings);
+
+    //remove duplicates
+    std::sort(user_strings.begin(), user_strings.end());
+    user_strings.erase(std::unique(user_strings.begin(), user_strings.end()), user_strings.end());
+
+    rapidjson::Value strings_arr(rapidjson::kArrayType);
+    for (auto& f : user_strings)
+    {
+        rapidjson::Value str;
+        str.SetObject();
+        str.AddMember("name", rapidjson::Value((boost::locale::conv::utf_to_utf<char>(f)).c_str(), alloc), alloc);
+        strings_arr.PushBack(str, alloc);
+    }
+
+    reply.AddMember("Strings", strings_arr, alloc);
 
     struct UnitsCategory
     {
