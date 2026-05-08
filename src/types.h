@@ -32,13 +32,14 @@ enum class ExpressionType
 //Returned result type
 enum class ResultType
 {
-	NONE = 0, 
-	REAL, 
-	INTEGER, 
-	RATIONAL, 
-	COMPLEX, 
+	NONE = 0,
+	REAL,
+	INTEGER,
+	RATIONAL,
+	COMPLEX,
 	AUTO,
-    ARRAY_REAL
+    ARRAY_REAL,
+    SYMBOLIC
 };
 
 enum class ErrorCode
