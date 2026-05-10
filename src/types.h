@@ -39,7 +39,9 @@ enum class ResultType
 	COMPLEX,
 	AUTO,
     ARRAY_REAL,
-    SYMBOLIC
+    SYMBOLIC_REAL,
+    SYMBOLIC_RATIONAL,
+    SYMBOLIC_COMPLEX
 };
 
 enum class ErrorCode

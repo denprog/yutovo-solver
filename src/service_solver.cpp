@@ -224,7 +224,7 @@ CalculatorSolver::CalculatorSolver(const std::string& _document_guid, const std:
     rational_parser(0, _language),
     complex_parser(0, _language),
     array_real_parser(0, _language),
-    symbolic_parser(10, _language),
+    symbolic_real_parser(10, _language),
     parser_context(_parser_context),
     logger(Logger::GetInstance(_logs_path + "/yutovo-solver", "calculator-solver", _log_console, _log_file))
 {
@@ -305,7 +305,9 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                 results_order.push_back(ResultType::RATIONAL);
                 results_order.push_back(ResultType::COMPLEX);
                 results_order.push_back(ResultType::ARRAY_REAL);
-                results_order.push_back(ResultType::SYMBOLIC);
+                results_order.push_back(ResultType::SYMBOLIC_REAL);
+                results_order.push_back(ResultType::SYMBOLIC_RATIONAL);
+                results_order.push_back(ResultType::SYMBOLIC_COMPLEX);
                 exit_on_success = false;
             }
             else
@@ -397,8 +399,8 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                             user_symbol_success = true;
                         }
                         break;
-                    case ResultType::SYMBOLIC:
-                        SolveSymbolic(request, r, &dependencies);
+                    case ResultType::SYMBOLIC_REAL:
+                        SolveSymbolicReal(request, r, &dependencies);
                         reply.CopyFrom(r, reply.GetAllocator());
                         if (exit_on_success)
                             return;
@@ -408,6 +410,28 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                             user_symbol_success = true;
                         }
                         break;
+                    // case ResultType::SYMBOLIC_RATIONAL:
+                    //     SolveSymbolicRational(request, r, &dependencies);
+                    //     reply.CopyFrom(r, reply.GetAllocator());
+                    //     if (exit_on_success)
+                    //         return;
+                    //     if (expression_type == ExpressionType::USER_SYMBOL && !user_symbol_success)
+                    //     {
+                    //         user_symbol_reply.CopyFrom(reply, reply.GetAllocator());
+                    //         user_symbol_success = true;
+                    //     }
+                    //     break;
+                    // case ResultType::SYMBOLIC_COMPLEX:
+                    //     SolveSymbolicComplex(request, r, &dependencies);
+                    //     reply.CopyFrom(r, reply.GetAllocator());
+                    //     if (exit_on_success)
+                    //         return;
+                    //     if (expression_type == ExpressionType::USER_SYMBOL && !user_symbol_success)
+                    //     {
+                    //         user_symbol_reply.CopyFrom(reply, reply.GetAllocator());
+                    //         user_symbol_success = true;
+                    //     }
+                    //     break;
                     case ResultType::AUTO:
                     case ResultType::NONE:
                         ReplyError(ErrorCode::OPERATION_ERROR, reply);
@@ -476,7 +500,9 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
     case ResultType::RATIONAL:
     case ResultType::COMPLEX:
     case ResultType::ARRAY_REAL:
-    case ResultType::SYMBOLIC:
+    case ResultType::SYMBOLIC_REAL:
+    case ResultType::SYMBOLIC_RATIONAL:
+    case ResultType::SYMBOLIC_COMPLEX:
         try
         {
             std::lock_guard<std::mutex> lock(parsers_lock);
@@ -497,9 +523,15 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             case ResultType::ARRAY_REAL:
                 SolveArrayReal(request, reply, &dependencies);
                 break;
-            case ResultType::SYMBOLIC:
-                SolveSymbolic(request, reply, &dependencies);
+            case ResultType::SYMBOLIC_REAL:
+                SolveSymbolicReal(request, reply, &dependencies);
                 break;
+            // case ResultType::SYMBOLIC_RATIONAL:
+            //     SolveSymbolicRational(request, reply, &dependencies);
+            //     break;
+            // case ResultType::SYMBOLIC_COMPLEX:
+            //     SolveSymbolicComplex(request, reply, &dependencies);
+            //     break;
             case ResultType::AUTO:
             case ResultType::NONE:
                 ReplyError(ErrorCode::OPERATION_ERROR, reply);
@@ -582,7 +614,7 @@ void CalculatorSolver::RemoveIdentifier(const rapidjson::Document& request, rapi
         rational_parser.RemoveIdentifier(id, identifier);
         complex_parser.RemoveIdentifier(id, identifier);
         array_real_parser.RemoveIdentifier(id, identifier);
-        symbolic_parser.RemoveIdentifier(id, identifier);
+        symbolic_real_parser.RemoveIdentifier(id, identifier);
     }
     catch (yutovo_calculator::ParserException ex)
     {
@@ -603,7 +635,7 @@ void CalculatorSolver::RemoveUserIdentifiers(const rapidjson::Document& request,
         rational_parser.RemoveUserIdentifiers();
         complex_parser.RemoveUserIdentifiers();
         array_real_parser.RemoveUserIdentifiers();
-        symbolic_parser.RemoveUserIdentifiers();
+        symbolic_real_parser.RemoveUserIdentifiers();
     }
     catch (yutovo_calculator::ParserException ex)
     {
@@ -625,7 +657,7 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
     rational_parser.ListBuiltinVariables(builtin_variables);
     complex_parser.ListBuiltinVariables(builtin_variables);
     array_real_parser.ListBuiltinVariables(builtin_variables);
-    symbolic_parser.ListBuiltinVariables(builtin_variables);
+    symbolic_real_parser.ListBuiltinVariables(builtin_variables);
 
     std::vector<std::pair<std::u32string, std::u32string>> user_variables;
     real_parser.ListUserVariables(user_variables);
@@ -633,7 +665,7 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
     rational_parser.ListUserVariables(user_variables);
     complex_parser.ListUserVariables(user_variables);
     array_real_parser.ListUserVariables(user_variables);
-    symbolic_parser.ListUserVariables(user_variables);
+    symbolic_real_parser.ListUserVariables(user_variables);
 
     std::sort(builtin_variables.begin(), builtin_variables.end());
     builtin_variables.erase(std::unique(builtin_variables.begin(), builtin_variables.end()), builtin_variables.end());
@@ -667,7 +699,7 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
     rational_parser.ListBuiltinFunctions(builtin_functions);
     complex_parser.ListBuiltinFunctions(builtin_functions);
     array_real_parser.ListBuiltinFunctions(builtin_functions);
-    symbolic_parser.ListBuiltinFunctions(builtin_functions);
+    symbolic_real_parser.ListBuiltinFunctions(builtin_functions);
 
     //remove duplicates
     std::sort(builtin_functions.begin(), builtin_functions.end());
@@ -687,7 +719,7 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
     rational_parser.ListUserFunctions(user_functions);
     complex_parser.ListUserFunctions(user_functions);
     array_real_parser.ListUserFunctions(user_functions);
-    symbolic_parser.ListUserFunctions(user_functions);
+    symbolic_real_parser.ListUserFunctions(user_functions);
 
     //remove duplicates
     std::sort(user_functions.begin(), user_functions.end());
@@ -708,7 +740,7 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
     rational_parser.ListBuiltinOperations(builtin_operations);
     complex_parser.ListBuiltinOperations(builtin_operations);
     array_real_parser.ListBuiltinOperations(builtin_operations);
-    symbolic_parser.ListBuiltinOperations(builtin_operations);
+    symbolic_real_parser.ListBuiltinOperations(builtin_operations);
 
     //remove duplicates
     std::sort(builtin_operations.begin(), builtin_operations.end());
@@ -730,7 +762,7 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
     rational_parser.ListUserStrings(user_strings);
     complex_parser.ListUserStrings(user_strings);
     array_real_parser.ListUserStrings(user_strings);
-    symbolic_parser.ListUserStrings(user_strings);
+    symbolic_real_parser.ListUserStrings(user_strings);
 
     //remove duplicates
     std::sort(user_strings.begin(), user_strings.end());
@@ -1033,7 +1065,7 @@ bool CalculatorSolver::SetLocale(const rapidjson::Document& request, rapidjson::
         rational_parser.SetLocale(locale.language);
         complex_parser.SetLocale(locale.language);
         array_real_parser.SetLocale(locale.language);
-        symbolic_parser.SetLocale(locale.language);
+        symbolic_real_parser.SetLocale(locale.language);
     }
     catch (yutovo_calculator::ParserException ex)
     {
@@ -1441,21 +1473,25 @@ void CalculatorSolver::SolveArrayReal(const rapidjson::Document& request, rapidj
     AddDependencies(reply, dependencies);
 }
 
-void CalculatorSolver::SolveSymbolic(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
+void CalculatorSolver::SolveSymbolicReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
 {
     std::string expression = request["expression"].GetString();
 
-    int precision = 10;
-    if (request.HasMember("symbolic_precision") && request["symbolic_precision"].IsInt())
-        precision = request["symbolic_precision"].GetInt();
+    int precision = 3;
+    if (request.HasMember("real_precision") && request["real_precision"].IsInt())
+        precision = request["real_precision"].GetInt();
     if (precision <= 0)
-        precision = 10;
+        precision = 3;
+
+    int exponent = 3;
+    if (request.HasMember("real_exponent_size") && request["real_exponent_size"].IsInt())
+        exponent = request["real_exponent_size"].GetInt();
 
     auto& alloc = reply.GetAllocator();
 
     parser_context->Init(max_time);
     parser_context->no_result = false;
-    Symbolic res = symbolic_parser.Parse(solving_id, expression, dependencies, precision, parser_context.get());
+    Symbolic<Real> res = symbolic_real_parser.Parse(solving_id, expression, dependencies, precision, parser_context.get());
     if (parser_context->no_result)
     {
         AddDependencies(reply, dependencies);
@@ -1463,11 +1499,12 @@ void CalculatorSolver::SolveSymbolic(const rapidjson::Document& request, rapidjs
         return;
     }
 
-    reply.AddMember("result_type", (int)ResultType::SYMBOLIC, alloc);
-    std::string s = res.ToStdString();
-    rapidjson::Value val(rapidjson::kStringType);
-    val.SetString(s.c_str(), s.size(), alloc);
-    reply.AddMember("value", val, alloc);
+    reply.AddMember("result_type", (int)ResultType::SYMBOLIC_REAL, alloc);
+
+    std::string value = res.ToStdString(exponent);
+    rapidjson::Value m(rapidjson::kStringType);
+    m.SetString(value.c_str(), value.size(), alloc);
+    reply.AddMember("value", m, alloc);
 
     AddDependencies(reply, dependencies);
 }

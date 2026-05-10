@@ -93,7 +93,7 @@ private:
     void SolveRational(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
     void SolveComplex(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
     void SolveArrayReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
-    void SolveSymbolic(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
+    void SolveSymbolicReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
 
     void AddReal(rapidjson::Document& reply, rapidjson::Value& obj, const Real& value, const int exponent_size, const int precision);
 
@@ -104,7 +104,7 @@ private:
     yutovo_calculator::Parser<yutovo_calculator::Rational> rational_parser;
     yutovo_calculator::Parser<yutovo_calculator::Complex> complex_parser;
     yutovo_calculator::Parser<yutovo_calculator::Array<Real>> array_real_parser;
-    yutovo_calculator::Parser<yutovo_calculator::Symbolic> symbolic_parser;
+    yutovo_calculator::Parser<yutovo_calculator::Symbolic<Real>> symbolic_real_parser;
 
     ParserContextPtr parser_context;
 
