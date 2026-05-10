@@ -332,6 +332,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             rapidjson::Document user_symbol_reply;
             bool user_symbol_success = false;
             bool error = false;
+            bool symbolic = false;
             yutovo_calculator::ParserException last_exception;
 
             std::lock_guard<std::mutex> lock(parsers_lock);
@@ -400,6 +401,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                         }
                         break;
                     case ResultType::SYMBOLIC_REAL:
+                        symbolic = true;
                         SolveSymbolicReal(request, r, &dependencies);
                         reply.CopyFrom(r, reply.GetAllocator());
                         if (exit_on_success)
@@ -460,12 +462,15 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                     logger->Error("Parser exception: {}", (int)ex.ex_id);
                     if (i == 0 || (ex.ex_id > 100 && ex.ex_id > last_exception.ex_id)) //simple check that exception is more discriptive
                     {
-                        error_reply.RemoveMember("error");
-                        ReplyError(ex, error_reply);
-                        AddDependencies(error_reply, &dependencies);
-                        if (!exit_on_success)
-                            reply.CopyFrom(error_reply, reply.GetAllocator());
-                        error = true;
+                        if (!error || !symbolic)
+                        {
+                            error_reply.RemoveMember("error");
+                            ReplyError(ex, error_reply);
+                            AddDependencies(error_reply, &dependencies);
+                            if (!exit_on_success)
+                                reply.CopyFrom(error_reply, reply.GetAllocator());
+                            error = true;
+                        }
                     }
                     last_exception = ex;
                 }
