@@ -225,6 +225,8 @@ CalculatorSolver::CalculatorSolver(const std::string& _document_guid, const std:
     complex_parser(0, _language),
     array_real_parser(0, _language),
     symbolic_real_parser(10, _language),
+    symbolic_rational_parser(10, _language),
+    symbolic_complex_parser(10, _language),
     parser_context(_parser_context),
     logger(Logger::GetInstance(_logs_path + "/yutovo-solver", "calculator-solver", _log_console, _log_file))
 {
@@ -412,28 +414,28 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                             user_symbol_success = true;
                         }
                         break;
-                    // case ResultType::SYMBOLIC_RATIONAL:
-                    //     SolveSymbolicRational(request, r, &dependencies);
-                    //     reply.CopyFrom(r, reply.GetAllocator());
-                    //     if (exit_on_success)
-                    //         return;
-                    //     if (expression_type == ExpressionType::USER_SYMBOL && !user_symbol_success)
-                    //     {
-                    //         user_symbol_reply.CopyFrom(reply, reply.GetAllocator());
-                    //         user_symbol_success = true;
-                    //     }
-                    //     break;
-                    // case ResultType::SYMBOLIC_COMPLEX:
-                    //     SolveSymbolicComplex(request, r, &dependencies);
-                    //     reply.CopyFrom(r, reply.GetAllocator());
-                    //     if (exit_on_success)
-                    //         return;
-                    //     if (expression_type == ExpressionType::USER_SYMBOL && !user_symbol_success)
-                    //     {
-                    //         user_symbol_reply.CopyFrom(reply, reply.GetAllocator());
-                    //         user_symbol_success = true;
-                    //     }
-                    //     break;
+                    case ResultType::SYMBOLIC_RATIONAL:
+                        SolveSymbolicRational(request, r, &dependencies);
+                        reply.CopyFrom(r, reply.GetAllocator());
+                        if (exit_on_success)
+                            return;
+                        if (expression_type == ExpressionType::USER_SYMBOL && !user_symbol_success)
+                        {
+                            user_symbol_reply.CopyFrom(reply, reply.GetAllocator());
+                            user_symbol_success = true;
+                        }
+                        break;
+                    case ResultType::SYMBOLIC_COMPLEX:
+                        SolveSymbolicComplex(request, r, &dependencies);
+                        reply.CopyFrom(r, reply.GetAllocator());
+                        if (exit_on_success)
+                            return;
+                        if (expression_type == ExpressionType::USER_SYMBOL && !user_symbol_success)
+                        {
+                            user_symbol_reply.CopyFrom(reply, reply.GetAllocator());
+                            user_symbol_success = true;
+                        }
+                        break;
                     case ResultType::AUTO:
                     case ResultType::NONE:
                         ReplyError(ErrorCode::OPERATION_ERROR, reply);
@@ -531,12 +533,12 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             case ResultType::SYMBOLIC_REAL:
                 SolveSymbolicReal(request, reply, &dependencies);
                 break;
-            // case ResultType::SYMBOLIC_RATIONAL:
-            //     SolveSymbolicRational(request, reply, &dependencies);
-            //     break;
-            // case ResultType::SYMBOLIC_COMPLEX:
-            //     SolveSymbolicComplex(request, reply, &dependencies);
-            //     break;
+            case ResultType::SYMBOLIC_RATIONAL:
+                SolveSymbolicRational(request, reply, &dependencies);
+                break;
+            case ResultType::SYMBOLIC_COMPLEX:
+                SolveSymbolicComplex(request, reply, &dependencies);
+                break;
             case ResultType::AUTO:
             case ResultType::NONE:
                 ReplyError(ErrorCode::OPERATION_ERROR, reply);
@@ -1510,6 +1512,92 @@ void CalculatorSolver::SolveSymbolicReal(const rapidjson::Document& request, rap
     rapidjson::Value m(rapidjson::kStringType);
     m.SetString(value.c_str(), value.size(), alloc);
     reply.AddMember("value", m, alloc);
+
+    std::string json_value = res.ToJson(exponent);
+    if (!json_value.empty())
+    {
+        rapidjson::Value j(rapidjson::kStringType);
+        j.SetString(json_value.c_str(), json_value.size(), alloc);
+        reply.AddMember("json", j, alloc);
+    }
+
+    AddDependencies(reply, dependencies);
+}
+
+void CalculatorSolver::SolveSymbolicRational(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
+{
+    std::string expression = request["expression"].GetString();
+
+    auto& alloc = reply.GetAllocator();
+
+    parser_context->Init(max_time);
+    parser_context->no_result = false;
+    Symbolic<Rational> res = symbolic_rational_parser.Parse(solving_id, expression, dependencies, 0, parser_context.get());
+    if (parser_context->no_result)
+    {
+        AddDependencies(reply, dependencies);
+        reply.AddMember("result_type", (int)ResultType::NONE, alloc);
+        return;
+    }
+
+    reply.AddMember("result_type", (int)ResultType::SYMBOLIC_RATIONAL, alloc);
+
+    std::string value = res.ToStdString(0);
+    rapidjson::Value m(rapidjson::kStringType);
+    m.SetString(value.c_str(), value.size(), alloc);
+    reply.AddMember("value", m, alloc);
+
+    std::string json_value = res.ToJson(0);
+    if (!json_value.empty())
+    {
+        rapidjson::Value j(rapidjson::kStringType);
+        j.SetString(json_value.c_str(), json_value.size(), alloc);
+        reply.AddMember("json", j, alloc);
+    }
+
+    AddDependencies(reply, dependencies);
+}
+
+void CalculatorSolver::SolveSymbolicComplex(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
+{
+    std::string expression = request["expression"].GetString();
+
+    int precision = 10;
+    if (request.HasMember("complex_precision") && request["complex_precision"].IsInt())
+        precision = request["complex_precision"].GetInt();
+    if (precision <= 0)
+        precision = 10;
+
+    int exponent = 10;
+    if (request.HasMember("complex_exponent_size") && request["complex_exponent_size"].IsInt())
+        exponent = request["complex_exponent_size"].GetInt();
+
+    auto& alloc = reply.GetAllocator();
+
+    parser_context->Init(max_time);
+    parser_context->no_result = false;
+    Symbolic<Complex> res = symbolic_complex_parser.Parse(solving_id, expression, dependencies, precision, parser_context.get());
+    if (parser_context->no_result)
+    {
+        AddDependencies(reply, dependencies);
+        reply.AddMember("result_type", (int)ResultType::NONE, alloc);
+        return;
+    }
+
+    reply.AddMember("result_type", (int)ResultType::SYMBOLIC_COMPLEX, alloc);
+
+    std::string value = res.ToStdString(exponent);
+    rapidjson::Value m(rapidjson::kStringType);
+    m.SetString(value.c_str(), value.size(), alloc);
+    reply.AddMember("value", m, alloc);
+
+    std::string json_value = res.ToJson(exponent);
+    if (!json_value.empty())
+    {
+        rapidjson::Value j(rapidjson::kStringType);
+        j.SetString(json_value.c_str(), json_value.size(), alloc);
+        reply.AddMember("json", j, alloc);
+    }
 
     AddDependencies(reply, dependencies);
 }
