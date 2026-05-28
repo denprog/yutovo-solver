@@ -1508,12 +1508,7 @@ void CalculatorSolver::SolveSymbolicReal(const rapidjson::Document& request, rap
 
     reply.AddMember("result_type", (int)ResultType::SYMBOLIC_REAL, alloc);
 
-    std::string value = res.ToStdString(exponent);
-    rapidjson::Value m(rapidjson::kStringType);
-    m.SetString(value.c_str(), value.size(), alloc);
-    reply.AddMember("value", m, alloc);
-
-    std::string json_value = res.ToJson(exponent);
+    std::string json_value = res.ToJson(exponent, locale.language);
     if (!json_value.empty())
     {
         rapidjson::Value j(rapidjson::kStringType);
@@ -1542,12 +1537,7 @@ void CalculatorSolver::SolveSymbolicRational(const rapidjson::Document& request,
 
     reply.AddMember("result_type", (int)ResultType::SYMBOLIC_RATIONAL, alloc);
 
-    std::string value = res.ToStdString(0);
-    rapidjson::Value m(rapidjson::kStringType);
-    m.SetString(value.c_str(), value.size(), alloc);
-    reply.AddMember("value", m, alloc);
-
-    std::string json_value = res.ToJson(0);
+    std::string json_value = res.ToJson(0, locale.language);
     if (!json_value.empty())
     {
         rapidjson::Value j(rapidjson::kStringType);
@@ -1586,12 +1576,7 @@ void CalculatorSolver::SolveSymbolicComplex(const rapidjson::Document& request, 
 
     reply.AddMember("result_type", (int)ResultType::SYMBOLIC_COMPLEX, alloc);
 
-    std::string value = res.ToStdString(exponent);
-    rapidjson::Value m(rapidjson::kStringType);
-    m.SetString(value.c_str(), value.size(), alloc);
-    reply.AddMember("value", m, alloc);
-
-    std::string json_value = res.ToJson(exponent);
+    std::string json_value = res.ToJson(exponent, locale.language);
     if (!json_value.empty())
     {
         rapidjson::Value j(rapidjson::kStringType);
