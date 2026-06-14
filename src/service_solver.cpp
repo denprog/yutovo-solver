@@ -1073,6 +1073,8 @@ bool CalculatorSolver::SetLocale(const rapidjson::Document& request, rapidjson::
         complex_parser.SetLocale(locale.language);
         array_real_parser.SetLocale(locale.language);
         symbolic_real_parser.SetLocale(locale.language);
+        symbolic_rational_parser.SetLocale(locale.language);
+        symbolic_complex_parser.SetLocale(locale.language);
     }
     catch (yutovo_calculator::ParserException ex)
     {
