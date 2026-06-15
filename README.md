@@ -9,7 +9,7 @@ If you haven't yet, build [yutovo-logger](https://github.com/denprog/yutovo-logg
 Install the dependencies:
 
 ```
-sudo update && sudo apt install -y rapidjson-dev
+sudo apt update && sudo apt install -y rapidjson-dev
 ```
 This variable should be set to the yutovo directory:
 
