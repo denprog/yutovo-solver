@@ -575,7 +575,7 @@ void CalculatorSolver::BreakSolving(const rapidjson::Document& request, rapidjso
     GetTimestamp(request, time_stamp);
 
     bool wait = true;
-    if (request.HasMember("wait") || request["wait"].IsBool())
+    if (request.HasMember("wait") && request["wait"].IsBool())
         wait = request["wait"].GetBool();
 
     reply.SetObject();
