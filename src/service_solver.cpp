@@ -1640,29 +1640,32 @@ PythonSolver::~PythonSolver()
 
 void PythonSolver::Solve(const rapidjson::Document& request, rapidjson::Document& reply)
 {
-    idle_time = time(nullptr);
+    throw ServiceException{ErrorCode::NOT_IMPLEMENTED};
 }
 
 void PythonSolver::BreakSolving(const rapidjson::Document& request, rapidjson::Document& reply)
 {
+    throw ServiceException{ErrorCode::NOT_IMPLEMENTED};
 }
 
 void PythonSolver::RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply)
 {
-    idle_time = time(nullptr);
+    throw ServiceException{ErrorCode::NOT_IMPLEMENTED};
 }
 
 void PythonSolver::RemoveUserIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply)
 {
+    throw ServiceException{ErrorCode::NOT_IMPLEMENTED};
 }
 
 void PythonSolver::ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply)
 {
+    throw ServiceException{ErrorCode::NOT_IMPLEMENTED};
 }
 
 bool PythonSolver::SetLocale(const rapidjson::Document& request, rapidjson::Document& reply)
 {
-    return true;
+    throw ServiceException{ErrorCode::NOT_IMPLEMENTED};
 }
 
 //Solvers

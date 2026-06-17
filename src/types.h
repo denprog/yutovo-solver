@@ -56,7 +56,8 @@ enum class ErrorCode
     OPERATION_ERROR, //there was error
     SOLVER_RESTARTED_ERROR, //all connected code blocks need to be reevaluated
     TIMEOUT_ERROR, //there was timeout of the service response
-    NO_RESULT //the operation did not produce a result
+    NO_RESULT, //the operation did not produce a result
+    NOT_IMPLEMENTED //the operation is not implemented
 };
 
 struct ServiceException
