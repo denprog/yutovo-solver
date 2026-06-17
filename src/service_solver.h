@@ -60,7 +60,7 @@ protected:
     bool GetUnit(const rapidjson::Document& request, Unit& unit);
 
 public:
-    time_t idle_time = time(nullptr);
+    std::atomic<time_t> idle_time = time(nullptr);
 
     std::string document_guid;
     std::string solver_guid;
@@ -119,7 +119,7 @@ private:
     std::mutex break_lock;
     std::map<LogicalId, int64_t> break_solvings;
 
-    bool just_started = true;
+    std::atomic<bool> just_started = true;
 
     Logger* logger = nullptr;
 };
