@@ -269,7 +269,12 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
     }
 
     solving_time_stamp = 0;
-    GetTimestamp(request, solving_time_stamp);
+    if (!GetTimestamp(request, solving_time_stamp))
+    {
+        logger->Error("result_type error");
+        ReplyError(ErrorCode::NO_FIELD_ERROR, reply);
+        return;
+    }
 
     {
         //check for breaking the solving before it's started
@@ -572,7 +577,12 @@ void CalculatorSolver::BreakSolving(const rapidjson::Document& request, rapidjso
     }
 
     uint64_t time_stamp = 0;
-    GetTimestamp(request, time_stamp);
+    if (!GetTimestamp(request, time_stamp))
+    {
+        logger->Error("result_type error");
+        ReplyError(ErrorCode::NO_FIELD_ERROR, reply);
+        return;
+    }    
 
     bool wait = true;
     if (request.HasMember("wait") && request["wait"].IsBool())
