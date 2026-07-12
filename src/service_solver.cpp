@@ -339,8 +339,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             rapidjson::Document user_symbol_reply;
             bool user_symbol_success = false;
             bool error = false;
-            bool symbolic = false;
-            yutovo_calculator::ParserException last_exception;
+            yutovo_calculator::ParserException last_exception(yutovo_calculator::LogicalId{}, yutovo_calculator::ParserExceptionCode::None, -1, 0);
 
             std::lock_guard<std::mutex> lock(parsers_lock);
             for (size_t i = 0; i < results_order.size(); ++i)
@@ -408,7 +407,6 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                         }
                         break;
                     case ResultType::SYMBOLIC_REAL:
-                        symbolic = true;
                         SolveSymbolicReal(request, r, &dependencies);
                         reply.CopyFrom(r, reply.GetAllocator());
                         if (exit_on_success)
@@ -467,17 +465,16 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                 catch (yutovo_calculator::ParserException& ex)
                 {
                     logger->Error("Parser exception: {}", (int)ex.ex_id);
-                    if (i == 0 || (ex.ex_id > 100 && ex.ex_id > last_exception.ex_id)) //simple check that exception is more discriptive
+                    //keep the error from the parser that advanced furthest into the expression
+                    if (ex.pos > last_exception.pos || (ex.pos == last_exception.pos && ex.ex_id < last_exception.ex_id))
                     {
-                        if (!error || !symbolic)
-                        {
+                        if (error_reply.HasMember("error"))
                             error_reply.RemoveMember("error");
-                            ReplyError(ex, error_reply);
-                            AddDependencies(error_reply, &dependencies);
-                            if (!exit_on_success)
-                                reply.CopyFrom(error_reply, reply.GetAllocator());
-                            error = true;
-                        }
+                        ReplyError(ex, error_reply);
+                        AddDependencies(error_reply, &dependencies);
+                        if (!exit_on_success)
+                            reply.CopyFrom(error_reply, reply.GetAllocator());
+                        error = true;
                     }
                     last_exception = ex;
                 }
