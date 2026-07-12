@@ -28,6 +28,10 @@ add_executable(${PROJECT_NAME}_tests
     main.cpp
     mock.cpp
     calculator.cpp
+    session.cpp
+    result_types.cpp
+    solvers.cpp
+    exceptions.cpp
 )
 
 if(WIN32)

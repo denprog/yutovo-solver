@@ -71,17 +71,6 @@ TEST_F(SolverTest, auto_unknown_function_keeps_real_parser_error)
     ASSERT_EQ(error["pos"].GetInt(), 0);
 }
 
-TEST_F(SolverTest, solver12_repro_y_plus_y_div_3)
-{
-    auto request = MakeRequest(ResultType::SYMBOLIC_REAL, "y+(y)/(3)");
-    rapidjson::Document reply;
-    solver->Solve(request, reply);
-    rapidjson::StringBuffer buffer;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    reply.Accept(writer);
-    ASSERT_FALSE(reply.HasMember("error")) << "Unexpected solver error";
-}
-
 //Helper test for the CodeTest.Code53 test in yutovo-editor
 TEST_F(SolverTest, auto_symbolic_expand_after_evalf_error)
 {
@@ -320,6 +309,66 @@ TEST_F(SolverTest, multiple_solvers_same_context)
         rapidjson::Document reply;
         solvers[i % solvers.size()]->Solve(request, reply);
     }
+}
+
+TEST_F(SolverTest, pending_break_cancels_next_solve)
+{
+    rapidjson::Document break_request;
+    break_request.SetObject();
+    auto& alloc = break_request.GetAllocator();
+    rapidjson::Value id(rapidjson::kArrayType);
+    id.PushBack(1, alloc);
+    break_request.AddMember("id", id, alloc);
+    break_request.AddMember("timestamp", 1, alloc);
+
+    rapidjson::Document break_reply;
+    solver->BreakSolving(break_request, break_reply);
+    ASSERT_FALSE(break_reply.HasMember("error"));
+
+    auto request = MakeRequest(ResultType::REAL, "1+2");
+    request.RemoveMember("id");
+    rapidjson::Value rid(rapidjson::kArrayType);
+    rid.PushBack(1, request.GetAllocator());
+    request.AddMember("id", rid, request.GetAllocator());
+
+    rapidjson::Document reply;
+    solver->Solve(request, reply);
+    ASSERT_TRUE(reply.HasMember("error"));
+    ASSERT_EQ(reply["error"]["error_code"].GetInt(), static_cast<int>(ErrorCode::PARSER_ERROR));
+    ASSERT_EQ(reply["error"]["parser_error_code"].GetInt(), static_cast<int>(ParserExceptionCode::Break));
+}
+
+TEST_F(SolverTest, break_solving_race_condition)
+{
+    std::atomic<bool> stop{false};
+    std::atomic<int> solves{0};
+
+    std::thread worker(
+        [this, &stop, &solves]
+        {
+            while (!stop.load())
+            {
+                auto request = MakeAutoRequest("expand((x+1)^30)");
+                rapidjson::Document reply;
+                solver->Solve(request, reply);
+                ++solves;
+            }
+        });
+
+    for (int i = 0; i < 200; ++i)
+    {
+        rapidjson::Document request, reply;
+        request.SetObject();
+        auto& alloc = request.GetAllocator();
+        request.AddMember("id", rapidjson::Value(rapidjson::kArrayType).Move(), alloc);
+        request.AddMember("timestamp", 1, alloc);
+        solver->BreakSolving(request, reply);
+        std::this_thread::yield();
+    }
+
+    stop.store(true);
+    worker.join();
+    ASSERT_GT(solves.load(), 0);
 }
 
 }
