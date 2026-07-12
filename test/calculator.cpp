@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <thread>
+#include <clocale>
 #include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
 #include "types.h"
@@ -68,6 +69,257 @@ TEST_F(SolverTest, auto_unknown_function_keeps_real_parser_error)
     ASSERT_EQ(error["error_code"].GetInt(), static_cast<int>(ErrorCode::PARSER_ERROR));
     ASSERT_EQ(error["parser_error_code"].GetInt(), static_cast<int>(ParserExceptionCode::UnknownIdentifier));
     ASSERT_EQ(error["pos"].GetInt(), 0);
+}
+
+TEST_F(SolverTest, solver12_repro_y_plus_y_div_3)
+{
+    auto request = MakeRequest(ResultType::SYMBOLIC_REAL, "y+(y)/(3)");
+    rapidjson::Document reply;
+    solver->Solve(request, reply);
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    reply.Accept(writer);
+    ASSERT_FALSE(reply.HasMember("error")) << "Unexpected solver error";
+}
+
+//Helper test for the CodeTest.Code53 test in yutovo-editor
+TEST_F(SolverTest, auto_symbolic_expand_after_evalf_error)
+{
+    setlocale(LC_ALL, "");
+    std::vector<std::string> expressions = 
+        {
+            "x+2*x+x^2+3*x+55",
+            "evalf(y+3.4*y)",
+            "evalf(sqrt()+y+3.4*y)",
+            "expand((x^3+x+3)^2)",
+            "simplify(1-cos(x)^2)",
+            "simplify((x+y)^2-x^2-2*x*y)",
+            "simplify((x+y)^2+(x+y)^2)",
+            "simplify(/)",
+            "simplify(/)"
+        };
+
+    for (const auto& expr : expressions)
+    {
+        auto request = MakeAutoRequest(expr.c_str());
+        auto& alloc = request.GetAllocator();
+        rapidjson::Value order(rapidjson::kArrayType);
+        for (int t : {1,2,3,4,6,7,8,9})
+            order.PushBack(t, alloc);
+        request.AddMember("results_order", order, alloc);
+        rapidjson::Document reply;
+        solver->Solve(request, reply);
+    }
+
+    {
+        auto request = MakeRequest(ResultType::SYMBOLIC_REAL, "expand((x^3+x+3)^2)");
+        rapidjson::Document reply;
+        solver->Solve(request, reply);
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        reply.Accept(writer);
+        ASSERT_FALSE(reply.HasMember("error")) << "Unexpected solver error";
+        ASSERT_TRUE(reply.HasMember("result_type"));
+        ASSERT_EQ(reply["result_type"].GetInt(), static_cast<int>(ResultType::SYMBOLIC_REAL));
+    }
+}
+
+//Helper test for the CodeTest.Code53 test in yutovo-editor
+TEST_F(SolverTest, thread_auto_symbolic_expand_after_evalf_error)
+{
+    std::thread t(
+        [this]
+        {
+            for (int i = 0; i < 10; ++i)
+            {
+                {
+                    auto request = MakeAutoRequest("evalf(sqrt((y)/(2))+y+3.4*y)");
+                    rapidjson::Document reply;
+                    solver->Solve(request, reply);
+                }
+
+                {
+                    auto request = MakeAutoRequest(i % 2 == 0 ? "expand((x^3+x+3)^2)" : "expand(pow((pow(x,3)+x+3),2))");
+                    rapidjson::Document reply;
+                    solver->Solve(request, reply);
+                    rapidjson::StringBuffer buffer;
+                    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+                    reply.Accept(writer);
+                    ASSERT_FALSE(reply.HasMember("error")) << "Unexpected solver error";
+                    ASSERT_TRUE(reply.HasMember("result_type"));
+                }
+            }
+        });
+    t.join();
+}
+
+//Helper test for the CodeTest.Code53 test in yutovo-editor
+TEST_F(SolverTest, two_solvers_concurrent)
+{
+    auto solver2 = std::make_unique<CalculatorSolver>("document_guid", "solver_guid-2", parser_context, Language::English, 0, "", false, false);
+    {
+        rapidjson::Document request, reply;
+        request.SetObject();
+        solver2->Solve(request, reply);
+    }
+
+    std::thread t1(
+        [this]
+        {
+            for (int i = 0; i < 20; ++i)
+            {
+                auto request = MakeAutoRequest("evalf(sqrt((y)/(2))+y+3.4*y)");
+                rapidjson::Document reply;
+                solver->Solve(request, reply);
+            }
+        });
+
+    std::thread t2(
+        [&solver2]
+        {
+            for (int i = 0; i < 20; ++i)
+            {
+                rapidjson::Document request, reply;
+                request.SetObject();
+                auto& alloc = request.GetAllocator();
+                request.AddMember("result_type", static_cast<int>(ResultType::AUTO), alloc);
+                std::string expr = "expand((x^3+x+3)^2);";
+                request.AddMember("expression", rapidjson::Value(expr.c_str(), alloc), alloc);
+                request.AddMember("id", rapidjson::Value(rapidjson::kArrayType).Move(), alloc);
+                request.AddMember("timestamp", 1, alloc);
+                solver2->Solve(request, reply);
+            }
+        });
+
+    t1.join();
+    t2.join();
+}
+
+//Helper test for the CodeTest.Code53 test in yutovo-editor
+TEST_F(SolverTest, one_solver_concurrent)
+{
+    std::thread t1(
+        [this]
+        {
+            for (int i = 0; i < 20; ++i)
+            {
+                auto request = MakeAutoRequest("evalf(sqrt((y)/(2))+y+3.4*y)");
+                rapidjson::Document reply;
+                solver->Solve(request, reply);
+            }
+        });
+
+    std::thread t2(
+        [this]
+        {
+            for (int i = 0; i < 20; ++i)
+            {
+                auto request = MakeAutoRequest("expand((x^3+x+3)^2)");
+                rapidjson::Document reply;
+                solver->Solve(request, reply);
+            }
+        });
+
+    t1.join();
+    t2.join();
+}
+
+//Helper test for the CodeTest.Code53 test in yutovo-editor
+TEST_F(SolverTest, row0_repro)
+{
+    for (int i = 0; i < 10; ++i)
+    {
+        auto request = MakeAutoRequest("x+2*x+x^2+3*x^55");
+        rapidjson::Document reply;
+        solver->Solve(request, reply);
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        reply.Accept(writer);
+        ASSERT_FALSE(reply.HasMember("error")) << "Unexpected solver error";
+    }
+}
+
+//Helper test for the CodeTest.Code53 test in yutovo-editor
+TEST_F(SolverTest, row0_semicolon_repro)
+{
+    for (int i = 0; i < 10; ++i)
+    {
+        auto request = MakeAutoRequest("x+2*x+x^2+3*x^55;");
+        rapidjson::Document reply;
+        solver->Solve(request, reply);
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        reply.Accept(writer);
+        ASSERT_FALSE(reply.HasMember("error")) << "Unexpected solver error";
+    }
+}
+
+//Helper test for the CodeTest.Code53 test in yutovo-editor
+TEST_F(SolverTest, row0_concurrent_with_evalf_error)
+{
+    std::thread t1(
+        [this]
+        {
+            for (int i = 0; i < 20; ++i)
+            {
+                auto request = MakeAutoRequest("evalf(sqrt((y)/(2))+y+3.4*y)");
+                rapidjson::Document reply;
+                solver->Solve(request, reply);
+            }
+        });
+
+    std::thread t2(
+        [this]
+        {
+            for (int i = 0; i < 20; ++i)
+            {
+                auto request = MakeAutoRequest("x+2*x+x^2+3*x^55");
+                rapidjson::Document reply;
+                solver->Solve(request, reply);
+                rapidjson::StringBuffer buffer;
+                rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+                reply.Accept(writer);
+                ASSERT_FALSE(reply.HasMember("error")) << "Unexpected solver error";
+            }
+        });
+
+    t1.join();
+    t2.join();
+}
+
+//Helper test for the CodeTest.Code53 test in yutovo-editor
+TEST_F(SolverTest, multiple_solvers_same_context)
+{
+    std::vector<std::unique_ptr<CalculatorSolver>> solvers;
+    for (int i = 0; i < 5; ++i)
+    {
+        auto s = std::make_unique<CalculatorSolver>("document_guid", std::string("solver_guid-") + std::to_string(i), parser_context, 
+            Language::English, 0, "", false, false);
+        rapidjson::Document request, reply;
+        request.SetObject();
+        s->Solve(request, reply);
+        solvers.push_back(std::move(s));
+    }
+
+    std::vector<std::string> expressions = 
+        {
+            "x+2*x+x^2+3*x+55",
+            "evalf(y+3.4*y)",
+            "evalf(sqrt()+y+3.4*y)",
+            "expand((x^3+x+3)^2)",
+            "simplify(1-cos(x)^2)",
+            "simplify((x+y)^2-x^2-2*x*y)",
+            "simplify((x+y)^2+(x+y)^2)",
+            "simplify(/)",
+            "simplify(/)"
+        };
+
+    for (size_t i = 0; i < expressions.size(); ++i)
+    {
+        auto request = MakeAutoRequest(expressions[i].c_str());
+        rapidjson::Document reply;
+        solvers[i % solvers.size()]->Solve(request, reply);
+    }
 }
 
 }
