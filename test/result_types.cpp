@@ -107,4 +107,17 @@ TEST_F(SolverTest, solve_auto_with_results_order)
     ASSERT_EQ(reply["result_type"].GetInt(), static_cast<int>(ResultType::SYMBOLIC_REAL));
 }
 
+TEST_F(SolverTest, auto_wrong_expression_returns_error_object)
+{
+    for (const char* expr : {";", "="})
+    {
+        auto request = MakeAutoRequest(expr);
+        rapidjson::Document reply;
+        solver->Solve(request, reply);
+        ASSERT_TRUE(reply.IsObject()) << "reply for [" << expr << "] is not an object";
+        ASSERT_TRUE(reply.HasMember("error")) << "expected parser error for [" << expr << "]";
+        ASSERT_EQ(reply["error"]["error_code"].GetInt(), static_cast<int>(ErrorCode::PARSER_ERROR));
+    }
+}
+
 }
