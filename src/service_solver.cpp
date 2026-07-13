@@ -465,8 +465,8 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                 catch (yutovo_calculator::ParserException& ex)
                 {
                     logger->Error("Parser exception: {}", (int)ex.ex_id);
-                    //keep the error from the parser that advanced furthest into the expression
-                    if (ex.pos > last_exception.pos || (ex.pos == last_exception.pos && ex.ex_id < last_exception.ex_id))
+                    //take an exception whose position is further away
+                    if (last_exception.ex_id == yutovo_calculator::ParserExceptionCode::None || (ex.pos + ex.size > last_exception.pos + last_exception.size))
                     {
                         if (error_reply.HasMember("error"))
                             error_reply.RemoveMember("error");
@@ -475,8 +475,8 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                         if (!exit_on_success)
                             reply.CopyFrom(error_reply, reply.GetAllocator());
                         error = true;
+                        last_exception = ex;
                     }
-                    last_exception = ex;
                 }
                 catch (ServiceException& ex)
                 {
