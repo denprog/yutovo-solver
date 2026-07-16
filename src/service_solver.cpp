@@ -151,6 +151,8 @@ void Solver::AddDependencies(rapidjson::Document& reply, const std::vector<std::
         rapidjson::Value s((boost::locale::conv::utf_to_utf<char>(str)).c_str(), alloc);
         d.PushBack(s, alloc);
     }
+    while (reply.HasMember("dependencies")) //remove the previous dependencies added by former tries
+        reply.RemoveMember("dependencies");
     reply.AddMember("dependencies", d, alloc);
 }
 
