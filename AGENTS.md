@@ -16,4 +16,7 @@ WebSocket-based calculation backend for the Yutovo editor.
 - When splitting an expression across lines, indent the continuation by 4 spaces.
 
 ## Build
-Use `-j16` maximum for building to avoid OOM kills.
+- Use `-j16` maximum for building to avoid OOM kills.
+- For Emscripten builds activate the toolchain first: `source ~/emsdk/emsdk_env.sh`.
+- Web build directories are `build_web/debug` and `build_web/release`.
+- Native Linux build directories are `build/debug` and `build/release`.
