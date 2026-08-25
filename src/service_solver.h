@@ -35,6 +35,8 @@ class Solver
 public:
     Solver(const std::string& _document_guid, const std::string& _solver_guid, const yutovo_calculator::Language _language);
 
+    virtual ~Solver() = default;
+
     virtual void Solve(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual void BreakSolving(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
     virtual void RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply) = 0;
@@ -73,6 +75,8 @@ protected:
 typedef std::shared_ptr<Solver> SolverPtr;
 typedef std::shared_ptr<yutovo_calculator::ParserContext> ParserContextPtr;
 
+class SolverProcess;
+
 class CalculatorSolver : public Solver
 {
 public:
@@ -86,6 +90,7 @@ public:
     virtual void RemoveUserIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual void ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply);
     virtual bool SetLocale(const rapidjson::Document& request, rapidjson::Document& reply);
+    virtual void SetMaxTime(const uint64_t _max_time);
 
 private:
     void SolveReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
@@ -111,6 +116,11 @@ private:
     yutovo_calculator::Parser<yutovo_calculator::Symbolic<Complex>> symbolic_complex_parser;
 
     ParserContextPtr parser_context;
+
+#ifdef YUTOVO_SOLVER_WORKER
+    //in proxy mode parser_context is null and the parsers live in the calculator worker process
+    std::shared_ptr<SolverProcess> process;
+#endif
 
     std::mutex solving_id_lock;
     LogicalId solving_id;
@@ -168,6 +178,22 @@ private:
     const std::string logs_path;
     bool log_console;
     bool log_file;
+};
+
+class SolveTimeoutWatchdog
+{
+public:
+    SolveTimeoutWatchdog(uint64_t _max_time);
+    ~SolveTimeoutWatchdog();
+
+    std::atomic<bool> fired{false};
+
+private:
+    std::atomic<bool> done{false};
+    std::thread timeout_thread;
+
+    //gives the in-parser CPU timer a chance to fire first, then interrupts a giac evaluation stuck past the deadline
+    const uint64_t interrupt_reserve_ms = 250;
 };
 
 }

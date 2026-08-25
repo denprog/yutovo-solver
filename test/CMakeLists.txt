@@ -66,6 +66,44 @@ if(NOT WIN32)
     gtest_discover_tests(${PROJECT_NAME}_tests)
 endif()
 
+#a worker build that cannot interrupt its own giac evaluations, used by tests of the parent kill path
+if(NOT EMSCRIPTEN AND NOT REMOTE_MODE)
+    #the postfix variable lives in the src directory scope, mirror it for this target
+    set(WORKER_TEST_DEBUG_POSTFIX d)
+    add_executable(${PROJECT_NAME}-calculator-worker-test
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/calculator_worker.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/service_solver.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/service_config.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/solver_process.cpp
+    )
+
+    set_target_properties(${PROJECT_NAME}-calculator-worker-test PROPERTIES DEBUG_POSTFIX ${WORKER_TEST_DEBUG_POSTFIX})
+    target_compile_definitions(${PROJECT_NAME}-calculator-worker-test PRIVATE YUTOVO_SOLVER_TEST_NO_INTERRUPT)
+
+    if(WIN32)
+        find_package(Boost REQUIRED COMPONENTS iostreams)
+        target_link_libraries(${PROJECT_NAME}-calculator-worker-test PRIVATE
+            yutovo-calculator
+            yutovo-logger
+            Boost::iostreams
+        )
+    else()
+        target_link_libraries(${PROJECT_NAME}-calculator-worker-test PRIVATE
+            stdc++
+            stdc++fs
+            pthread
+            yutovo-calculator
+            yutovo-logger
+        )
+    endif()
+    
+    target_include_directories(${PROJECT_NAME}-calculator-worker-test PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src
+        $<$<CONFIG:Debug>:${INSTALL_PATH}/include>
+        $<$<CONFIG:Release>:${INSTALL_PATH}/include>
+    )
+endif()
+
 install(
     TARGETS ${PROJECT_NAME}_tests
     EXPORT ${PROJECT_NAME}

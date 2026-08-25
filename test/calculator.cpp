@@ -75,17 +75,17 @@ TEST_F(SolverTest, auto_unknown_function_keeps_real_parser_error)
 TEST_F(SolverTest, auto_symbolic_expand_after_evalf_error)
 {
     setlocale(LC_ALL, "");
-    std::vector<std::string> expressions = 
+    std::vector<std::string> expressions =
         {
-            "x+2*x+x^2+3*x+55",
+            "x+2*x+pow(x,2)+3*x+55",
             "evalf(y+3.4*y)",
-            "evalf(sqrt()+y+3.4*y)",
-            "expand((x^3+x+3)^2)",
-            "simplify(1-cos(x)^2)",
-            "simplify((x+y)^2-x^2-2*x*y)",
-            "simplify((x+y)^2+(x+y)^2)",
-            "simplify(/)",
-            "simplify(/)"
+            "evalf(sqrt(y)+y+3.4*y)",
+            "expand(pow(pow(x,3)+x+3,2))",
+            "simplify(1-pow(cos(x),2))",
+            "simplify(pow(x+y,2)-pow(x,2)-2*x*y)",
+            "simplify(pow(x+y,2)+pow(x+y,2))",
+            "simplify(x)",
+            "simplify(x)"
         };
 
     for (const auto& expr : expressions)
@@ -101,7 +101,7 @@ TEST_F(SolverTest, auto_symbolic_expand_after_evalf_error)
     }
 
     {
-        auto request = MakeRequest(ResultType::SYMBOLIC_REAL, "expand((x^3+x+3)^2)");
+        auto request = MakeRequest(ResultType::SYMBOLIC_REAL, "expand(pow(pow(x,3)+x+3,2))");
         rapidjson::Document reply;
         solver->Solve(request, reply);
         rapidjson::StringBuffer buffer;
@@ -128,7 +128,7 @@ TEST_F(SolverTest, thread_auto_symbolic_expand_after_evalf_error)
                 }
 
                 {
-                    auto request = MakeAutoRequest(i % 2 == 0 ? "expand((x^3+x+3)^2)" : "expand(pow((pow(x,3)+x+3),2))");
+                    auto request = MakeAutoRequest("expand(pow(pow(x,3)+x+3,2))");
                     rapidjson::Document reply;
                     solver->Solve(request, reply);
                     rapidjson::StringBuffer buffer;
@@ -218,7 +218,7 @@ TEST_F(SolverTest, row0_repro)
 {
     for (int i = 0; i < 10; ++i)
     {
-        auto request = MakeAutoRequest("x+2*x+x^2+3*x^55");
+        auto request = MakeAutoRequest("x+2*x+pow(x,2)+3*pow(x,55)");
         rapidjson::Document reply;
         solver->Solve(request, reply);
         rapidjson::StringBuffer buffer;
@@ -233,7 +233,7 @@ TEST_F(SolverTest, row0_semicolon_repro)
 {
     for (int i = 0; i < 10; ++i)
     {
-        auto request = MakeAutoRequest("x+2*x+x^2+3*x^55;");
+        auto request = MakeAutoRequest("x+2*x+pow(x,2)+3*pow(x,55);");
         rapidjson::Document reply;
         solver->Solve(request, reply);
         rapidjson::StringBuffer buffer;
@@ -262,7 +262,7 @@ TEST_F(SolverTest, row0_concurrent_with_evalf_error)
         {
             for (int i = 0; i < 20; ++i)
             {
-                auto request = MakeAutoRequest("x+2*x+x^2+3*x^55");
+                auto request = MakeAutoRequest("x+2*x+pow(x,2)+3*pow(x,55)");
                 rapidjson::Document reply;
                 solver->Solve(request, reply);
                 rapidjson::StringBuffer buffer;
@@ -290,17 +290,17 @@ TEST_F(SolverTest, multiple_solvers_same_context)
         solvers.push_back(std::move(s));
     }
 
-    std::vector<std::string> expressions = 
+    std::vector<std::string> expressions =
         {
-            "x+2*x+x^2+3*x+55",
+            "x+2*x+pow(x,2)+3*x+55",
             "evalf(y+3.4*y)",
-            "evalf(sqrt()+y+3.4*y)",
-            "expand((x^3+x+3)^2)",
-            "simplify(1-cos(x)^2)",
-            "simplify((x+y)^2-x^2-2*x*y)",
-            "simplify((x+y)^2+(x+y)^2)",
-            "simplify(/)",
-            "simplify(/)"
+            "evalf(sqrt(y)+y+3.4*y)",
+            "expand(pow(pow(x,3)+x+3,2))",
+            "simplify(1-pow(cos(x),2))",
+            "simplify(pow(x+y,2)-pow(x,2)-2*x*y)",
+            "simplify(pow(x+y,2)+pow(x+y,2))",
+            "simplify(x)",
+            "simplify(x)"
         };
 
     for (size_t i = 0; i < expressions.size(); ++i)

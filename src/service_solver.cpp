@@ -8,6 +8,14 @@
 #include "service_solver.h"
 #include "service_config.h"
 #include <yutovo-calculator/integer.h>
+#include <giac/global.h>
+#include <atomic>
+#include <chrono>
+#include <thread>
+
+#ifdef YUTOVO_SOLVER_WORKER
+#include "solver_process.h"
+#endif
 
 #ifdef _MSC_VER
 #undef GetObject
@@ -233,17 +241,47 @@ CalculatorSolver::CalculatorSolver(const std::string& _document_guid, const std:
     logger(Logger::GetInstance(_logs_path + "/yutovo-solver", "calculator-solver", _log_console, _log_file))
 {
     max_time = _max_time;
+#ifdef YUTOVO_SOLVER_WORKER
+    //a null parser context means proxy mode: the parsers live in the calculator worker process
+    if (!parser_context)
+        process = SolverProcess::GetProcess(_document_guid, _max_time, _logs_path, _log_console, _log_file);
+#endif
     logger->Info("Calculator Solver started: {}", solver_guid);
 }
 
 CalculatorSolver::~CalculatorSolver()
 {
+#ifdef YUTOVO_SOLVER_WORKER
+    if (process)
+        process->SendRemoveSolver(solver_guid);
+#endif
     logger->Info("Calculator Solver finished: {}", solver_guid);
+}
+
+void CalculatorSolver::SetMaxTime(const uint64_t _max_time)
+{
+    max_time = _max_time;
+#ifdef YUTOVO_SOLVER_WORKER
+    if (process)
+        process->SetMaxTime(_max_time);
+#endif
 }
 
 void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Document& reply)
 {
     idle_time = time(nullptr);
+
+#ifdef YUTOVO_SOLVER_WORKER
+    //proxy mode: the parsers live in the calculator worker process
+    if (!parser_context)
+    {
+        if (process)
+            process->SendAction(solver_guid, "solve", request, reply, (int)locale.language);
+        else
+            ReplyError(ErrorCode::SOLVER_ERROR, reply);
+        return;
+    }
+#endif
 
     reply.SetObject();
     if (just_started)
@@ -253,7 +291,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
         return;
     }
 
-    if (!request.HasMember("result_type") || !request["result_type"].IsInt() || 
+    if (!request.HasMember("result_type") || !request["result_type"].IsInt() ||
         !request.HasMember("expression") || !request["expression"].IsString())
     {
         logger->Error("result_type error");
@@ -278,6 +316,10 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
         return;
     }
 
+    //clear the giac interrupt flags that could be left from a previous break
+    giac::ctrl_c = false;
+    giac::interrupted = false;
+
     {
         //check for breaking the solving before it's started
         std::lock_guard<std::mutex> l(break_lock);
@@ -298,6 +340,9 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
     ExpressionType expression_type = ExpressionType::NONE;
     if (request.HasMember("expression_type") && request["expression_type"].IsInt())
         expression_type = (ExpressionType)request["expression_type"].GetInt();
+
+    //on the web there is no worker process to kill, a stuck giac evaluation is interrupted by the giac flags instead
+    SolveTimeoutWatchdog timeout_watchdog(max_time);
 
     switch (result_type)
     {
@@ -468,7 +513,8 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                 {
                     logger->Error("Parser exception: {}", (int)ex.ex_id);
                     //take an exception whose position is further away
-                    if (last_exception.ex_id == yutovo_calculator::ParserExceptionCode::None || (ex.pos + ex.size > last_exception.pos + last_exception.size))
+                    if (last_exception.ex_id == yutovo_calculator::ParserExceptionCode::None || 
+                        (ex.pos + ex.size > last_exception.pos + last_exception.size))
                     {
                         if (error_reply.HasMember("error"))
                             error_reply.RemoveMember("error");
@@ -564,6 +610,13 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
         ReplyError(ErrorCode::OPERATION_ERROR, reply);
         return;
     }
+
+    //an evaluation interrupted by the deadline is reported as a time exceed, like a killed worker process
+    if (timeout_watchdog.fired.load() && (reply.HasMember("error") || reply.ObjectEmpty()))
+    {
+        logger->Error("Solve interrupted by the time watchdog");
+        ReplyError(ParserException(solving_id, ParserExceptionCode::TimeExceed, -1, -1), reply);
+    }
 }
 
 void CalculatorSolver::BreakSolving(const rapidjson::Document& request, rapidjson::Document& reply)
@@ -581,11 +634,22 @@ void CalculatorSolver::BreakSolving(const rapidjson::Document& request, rapidjso
         logger->Error("result_type error");
         ReplyError(ErrorCode::NO_FIELD_ERROR, reply);
         return;
-    }    
+    }
 
     bool wait = true;
     if (request.HasMember("wait") && request["wait"].IsBool())
         wait = request["wait"].GetBool();
+
+#ifdef YUTOVO_SOLVER_WORKER
+    //proxy mode: forward the break to the calculator worker process
+    if (!parser_context)
+    {
+        if (process)
+            process->SendBreak(solver_guid, request, wait);
+        ReplyOk(reply);
+        return;
+    }
+#endif
 
     reply.SetObject();
 
@@ -593,7 +657,12 @@ void CalculatorSolver::BreakSolving(const rapidjson::Document& request, rapidjso
         std::lock_guard<std::mutex> lock(solving_id_lock);
         if (id == solving_id && time_stamp >= solving_time_stamp)
         {
+#ifndef YUTOVO_SOLVER_TEST_NO_INTERRUPT
+            //the test build of the worker cannot stop itself, so the parent kill path can be tested
             parser_context->break_solving = true; //break the current solving
+            giac::ctrl_c = true; //softly interrupt the giac evaluation loops
+            giac::interrupted = true;
+#endif
         }
         else if (wait)
         {
@@ -609,6 +678,17 @@ void CalculatorSolver::BreakSolving(const rapidjson::Document& request, rapidjso
 void CalculatorSolver::RemoveIdentifier(const rapidjson::Document& request, rapidjson::Document& reply)
 {
     idle_time = time(nullptr);
+
+#ifdef YUTOVO_SOLVER_WORKER
+    if (!parser_context)
+    {
+        if (process)
+            process->SendAction(solver_guid, "remove_identifier", request, reply, (int)locale.language);
+        else
+            ReplyError(ErrorCode::SOLVER_ERROR, reply);
+        return;
+    }
+#endif
 
     if (!request.HasMember("expression") || !request["expression"].IsString())
     {
@@ -643,6 +723,17 @@ void CalculatorSolver::RemoveUserIdentifiers(const rapidjson::Document& request,
 {
     idle_time = time(nullptr);
 
+#ifdef YUTOVO_SOLVER_WORKER
+    if (!parser_context)
+    {
+        if (process)
+            process->SendAction(solver_guid, "remove_user_identifiers", request, reply, (int)locale.language);
+        else
+            ReplyError(ErrorCode::SOLVER_ERROR, reply);
+        return;
+    }
+#endif
+
     try
     {
         std::lock_guard<std::mutex> lock(parsers_lock);
@@ -662,6 +753,17 @@ void CalculatorSolver::RemoveUserIdentifiers(const rapidjson::Document& request,
 void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapidjson::Document& reply)
 {
     idle_time = time(nullptr);
+
+#ifdef YUTOVO_SOLVER_WORKER
+    if (!parser_context)
+    {
+        if (process)
+            process->SendAction(solver_guid, "list_identifiers", request, reply, (int)locale.language);
+        else
+            ReplyError(ErrorCode::SOLVER_ERROR, reply);
+        return;
+    }
+#endif
 
     auto& alloc = reply.GetAllocator();
 
@@ -1064,6 +1166,19 @@ bool CalculatorSolver::SetLocale(const rapidjson::Document& request, rapidjson::
 {
     idle_time = time(nullptr);
 
+#ifdef YUTOVO_SOLVER_WORKER
+    if (!parser_context)
+    {
+        if (request.HasMember("language") && request["language"].IsInt())
+            locale.language = (Language)request["language"].GetInt();
+        if (process)
+            process->SendAction(solver_guid, "set_locale", request, reply, (int)locale.language);
+        else
+            ReplyError(ErrorCode::SOLVER_ERROR, reply);
+        return !reply.HasMember("error");
+    }
+#endif
+
     if (!request.HasMember("language") || !request["language"].IsInt())
     {
         logger->Error("language error");
@@ -1071,7 +1186,10 @@ bool CalculatorSolver::SetLocale(const rapidjson::Document& request, rapidjson::
         return false;
     }
 
-    locale.language = (Language)request["language"].GetInt();
+    Language new_language = (Language)request["language"].GetInt();
+    if (new_language == locale.language)
+        return true; //the parsers are created with the current language, skip the heavy rebuild
+    locale.language = new_language;
 
     try
     {
@@ -1697,6 +1815,8 @@ SolverPtr Solvers::GetSolver(const std::string& document_guid, const std::string
         locale = it_l->second;
 
     ParserContextPtr parser_context;
+    //on desktop the parsers live in a separate worker process, so a proxy solver gets no parser context
+#ifndef YUTOVO_SOLVER_WORKER
     auto it_p = parser_contexts.find(document_guid);
     if (it_p != parser_contexts.end())
         parser_context = it_p->second;
@@ -1705,6 +1825,7 @@ SolverPtr Solvers::GetSolver(const std::string& document_guid, const std::string
         parser_context.reset(new yutovo_calculator::ParserContext());
         parser_contexts[document_guid] = parser_context;
     }
+#endif
     
     switch (solver_type)
     {
@@ -1752,6 +1873,10 @@ bool Solvers::RemoveSolver(const std::string& solver_guid, const int code_id)
 void Solvers::SetLocale(const std::string& solver_guid, const yutovo_calculator::Language language, 
     const rapidjson::Document& request, rapidjson::Document& reply)
 {
+    //an out of range language would throw from the parser constructors when a solver is created
+    if (language < yutovo_calculator::Language::English || language > yutovo_calculator::Language::BrazilianPortuguese)
+        return;
+
     std::lock_guard<std::mutex> lock(solvers_mutex);
     auto it = solvers.find(solver_guid);
     if (it != solvers.end())
@@ -1776,14 +1901,26 @@ void Solvers::RemoveUserIdentifiers(const std::string& solver_guid, const rapidj
 
 void Solvers::ClearExport(const std::string& document_guid, const rapidjson::Document& request, rapidjson::Document& reply)
 {
-    std::lock_guard<std::mutex> lock(solvers_mutex);
+    std::unique_lock<std::mutex> lock(solvers_mutex);
+#ifdef YUTOVO_SOLVER_WORKER
+    //the parser context lives in the calculator worker process of the document
+    auto process = SolverProcess::FindProcess(document_guid);
+    if (process)
+    {
+        lock.unlock();
+        process->SendAction("", "clear_export", request, reply);
+    }
+#else
     auto it = parser_contexts.find(document_guid);
     if (it != parser_contexts.end())
         it->second->exports->Clear();
+#endif
 }
 
 void Solvers::SetMaxTime(const uint64_t max_time)
 {
+    //new solvers are created with service_config->max_time, so it must be updated as well
+    service_config->max_time = max_time;
     std::lock_guard<std::mutex> lock(solvers_mutex);
     for (auto& s : solvers)
     {
@@ -1830,6 +1967,44 @@ void Solvers::RemoveTimeouted()
         else
             ++it_p;
     }
+}
+
+//SolveTimeoutWatchdog
+
+SolveTimeoutWatchdog::SolveTimeoutWatchdog(uint64_t _max_time)
+{
+    if (_max_time == 0)
+        return; //no time limit is armed
+
+    timeout_thread = std::thread(
+        [this, deadline = _max_time + interrupt_reserve_ms]() -> void
+        {
+            auto start = std::chrono::steady_clock::now();
+            while (!done.load())
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
+                if (elapsed < static_cast<int64_t>(deadline))
+                    continue;
+                if (done.load())
+                    return;
+                //interrupt a stuck giac evaluation with the giac flags only, the parser timer keeps its own handling
+                fired.store(true);
+#ifndef YUTOVO_SOLVER_TEST_NO_INTERRUPT
+                //the test build of the worker cannot stop itself, so the parent kill path can be tested
+                giac::ctrl_c = true;
+                giac::interrupted = true;
+#endif
+                return;
+            }
+        });
+}
+
+SolveTimeoutWatchdog::~SolveTimeoutWatchdog()
+{
+    done.store(true);
+    if (timeout_thread.joinable())
+        timeout_thread.join();
 }
 
 }

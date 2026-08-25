@@ -34,6 +34,23 @@ void Session::Parse(const std::string& json, std::string& reply)
         return;
     }
 
+    //the session must not leak exceptions into the caller thread, the editor message loop has no handler
+    try
+    {
+        ParseCommand(request_json, reply);
+    }
+    catch (ServiceException& ex)
+    {
+        MakeError(ex.error_code, reply);
+    }
+    catch (...)
+    {
+        MakeError(ErrorCode::SOLVER_ERROR, reply);
+    }
+}
+
+void Session::ParseCommand(const rapidjson::Document& request_json, std::string& reply)
+{
     if (!request_json.HasMember("command") || !request_json["command"].IsString())
     {
         MakeError(ErrorCode::NO_FIELD_ERROR, reply);
