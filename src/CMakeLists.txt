@@ -25,6 +25,8 @@ if(WIN32)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(mpfr REQUIRED IMPORTED_TARGET mpfr)
     find_package(RapidJSON CONFIG REQUIRED)
+    #solver_process.cpp uses boost::process for the worker process
+    find_package(Boost REQUIRED COMPONENTS iostreams)
 elseif(NOT EMSCRIPTEN)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(mpfr REQUIRED IMPORTED_TARGET mpfr)
@@ -37,14 +39,18 @@ if(REMOTE_MODE)
         session.cpp
         service_solver.cpp
         service_config.cpp
+        solver_process.cpp
     )
 else()
     add_library(${PROJECT_NAME}
         session.cpp
         service_solver.cpp
         service_config.cpp
+        solver_process.cpp
     )
 endif()
+
+set(CMAKE_DEBUG_POSTFIX d)
 
 if(WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8 /bigobj /EHsc /MP")
@@ -86,6 +92,43 @@ endif()
 set_target_properties(${PROJECT_NAME} PROPERTIES 
     DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
 
+#the worker process that owns the calculator parsers, not built for emscripten
+if(NOT EMSCRIPTEN AND NOT REMOTE_MODE)
+    add_executable(${PROJECT_NAME}-calculator-worker
+        calculator_worker.cpp
+        service_solver.cpp
+        service_config.cpp
+        solver_process.cpp
+    )
+
+    set_target_properties(${PROJECT_NAME}-calculator-worker PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
+    
+    if(WIN32)
+        target_link_libraries(${PROJECT_NAME}-calculator-worker PRIVATE
+            yutovo-calculator
+            yutovo-logger
+            Boost::iostreams
+        )
+    else()
+        target_link_libraries(${PROJECT_NAME}-calculator-worker PRIVATE
+            stdc++
+            stdc++fs
+            pthread
+            yutovo-calculator
+            yutovo-logger
+        )
+    endif()
+    target_include_directories(${PROJECT_NAME}-calculator-worker PUBLIC
+        $<$<CONFIG:Debug>:${INSTALL_PATH}/include>
+        $<$<CONFIG:Release>:${INSTALL_PATH}/include>
+    )
+    install(
+        TARGETS ${PROJECT_NAME}-calculator-worker
+        DESTINATION ${INSTALL_PATH}/bin
+        COMPONENT ${PROJECT_NAME}
+    )
+endif()
+
 if(REMOTE_MODE)
     target_link_libraries(${PROJECT_NAME} PRIVATE
         stdc++
@@ -101,6 +144,7 @@ else()
         target_link_libraries(${PROJECT_NAME} PRIVATE
             yutovo-calculator
             yutovo-logger
+            Boost::iostreams
         )
         target_link_libraries(${PROJECT_NAME} PRIVATE RapidJSON rapidjson)
     else()

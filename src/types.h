@@ -12,6 +12,11 @@
 
 typedef unsigned int uint;
 
+//The calculator parsers run in a separate worker process on desktop platforms
+#if !defined(__EMSCRIPTEN__)
+#define YUTOVO_SOLVER_WORKER
+#endif
+
 namespace yutovo_solver
 {
 

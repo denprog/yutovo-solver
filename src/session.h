@@ -49,6 +49,7 @@ public:
     void SetMaxTime(const uint64_t max_time);
 
 protected:
+    void ParseCommand(const rapidjson::Document& request_json, std::string& reply);
     void MakeError(const ErrorCode error_code, std::string& reply);
     void MakeOk(std::string& reply);
     void MakeReply(const rapidjson::Document& json, std::string& reply);
