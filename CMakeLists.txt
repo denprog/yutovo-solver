@@ -22,7 +22,7 @@ endif()
 
 option(BUILD_TESTS "Build unit tests" ON)
 
-if(NOT WIN32 AND BUILD_TESTS AND NOT EMSCRIPTEN)
+if(NOT WIN32 AND NOT EMSCRIPTEN)
     set(CMAKE_FIND_ROOT_PATH ${INSTALL_PATH}/lib/cmake/)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(mpfr REQUIRED IMPORTED_TARGET mpfr)
