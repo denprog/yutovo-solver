@@ -112,7 +112,7 @@ auto callback =
 - Native Linux build directories are `build/debug` and `build/release`.
 
 ## Worker process
-- On desktop (`YUTOVO_SOLVER_WORKER` in `types.h`: not emscripten, not Windows) the parsers run in a separate process (`yutovo-solver-calculator-worker`), one worker per document, so a long-running calculation can be killed when `BREAK_SOLVING` cannot interrupt it cleanly.
+- On desktop (`YUTOVO_SOLVER_WORKER` in `types.h`: not emscripten) the parsers run in a separate process (`yutovo-solver-calculator-worker`), one worker per document, so a long-running calculation can be killed when `BREAK_SOLVING` cannot interrupt it cleanly. On Windows the worker is spawned with `CREATE_NO_WINDOW` so it never shows a console window when started from the GUI app.
 - `Solvers::GetSolver()` creates a proxy `CalculatorSolver` with a null `parser_context`; all its methods forward the request over `SolverProcess` IPC (JSON lines over stdin/stdout). Inside the worker the same `CalculatorSolver` class runs with a real `parser_context` and does the actual parsing.
 - The request envelope carries `language` and `max_time` alongside the action; the worker applies them to its solvers (`SetLocale` on change, `SetMaxTime` per request).
 - `BREAK_SOLVING` sends the break to the worker (its reader thread handles it immediately), waits up to 1 second for the active request to finish, then SIGKILLs the process; a killed solve is reported as a `TimeExceed` parser error and the next request starts a fresh worker (its first solve returns `SOLVER_RESTARTED_ERROR` so the editor resynchronizes).

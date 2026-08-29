@@ -14,6 +14,11 @@
 
 #include "rapidjson/document.h"
 #include <yutovo-logger/logger.h>
+#ifdef _WIN32
+//the vcpkg sys/time.h shim pulled in by the giac headers defines _WINSOCKAPI_ without winsock2,
+//preload the real header so the boost::asio guard does not reject the translation unit
+#include <winsock2.h>
+#endif
 #include <boost/process.hpp>
 #include <atomic>
 #include <condition_variable>

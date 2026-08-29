@@ -13,6 +13,8 @@ endif()
 
 if(WIN32)
     set(INSTALL_PATH "$ENV{VCPKG_ROOT}/installed/x64-windows")
+    #giac headers pull in windows.h before boost::asio, exclude winsock.h to avoid the clash
+    add_compile_definitions(WIN32_LEAN_AND_MEAN)
 else()
     set(INSTALL_PATH "$ENV{YUTOVO_DEPLOY}")
 endif()
@@ -36,6 +38,22 @@ if(NOT WIN32 AND NOT EMSCRIPTEN)
             set(_giac_library "${INSTALL_PATH}/lib/libgiac.a")
         endif()
         string(REPLACE "giac_imported" "${_giac_library}" _calc_interface_libs "${_calc_interface_libs}")
+        set_target_properties(yutovo-calculator PROPERTIES INTERFACE_LINK_LIBRARIES "${_calc_interface_libs}")
+    endif()
+endif()
+
+if(WIN32)
+    #the interface of the imported target references the placeholder giac_imported,
+    #resolve it here once so that both src and test consume the patched target
+    set(CMAKE_PREFIX_PATH "${INSTALL_PATH}")
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(mpfr REQUIRED IMPORTED_TARGET mpfr)
+    find_package(yutovo-calculator REQUIRED)
+    get_target_property(_calc_interface_libs yutovo-calculator INTERFACE_LINK_LIBRARIES)
+    if(_calc_interface_libs)
+        string(REPLACE "giac_imported"
+            "$<IF:$<CONFIG:Debug>,${INSTALL_PATH}/debug/lib/giacd.lib,${INSTALL_PATH}/lib/giac.lib>"
+            _calc_interface_libs "${_calc_interface_libs}")
         set_target_properties(yutovo-calculator PROPERTIES INTERFACE_LINK_LIBRARIES "${_calc_interface_libs}")
     endif()
 endif()
