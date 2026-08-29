@@ -24,6 +24,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <boost/process/v1/windows.hpp>
 #else
 #include <cerrno>
 #include <poll.h>
@@ -283,7 +284,12 @@ bool SolverProcess::EnsureStarted()
     try
     {
         child.reset(new boost::process::child(exe, document_guid, logs_path, log_file ? "1" : "0",
-            boost::process::std_in < *in, boost::process::std_out > *out, boost::process::std_err > stderr));
+            boost::process::std_in < *in, boost::process::std_out > *out, boost::process::std_err > stderr
+#ifdef _WIN32
+            //the desktop app is a GUI process, without CREATE_NO_WINDOW windows allocates a visible console for the worker
+            , boost::process::windows::create_no_window
+#endif
+            ));
     }
     catch (const std::exception& e)
     {
@@ -427,7 +433,7 @@ bool SolverProcess::ReceiveLine(std::string& line, int64_t timeout_ms)
             if (pipebuf)
             {
 #ifdef _WIN32
-                pipe_handle = pipebuf->pipe().native_handle();
+                pipe_handle = pipebuf->pipe().native_source();
 #else
                 pipe_handle = reinterpret_cast<void*>(static_cast<intptr_t>(pipebuf->pipe().native_source()));
 #endif
@@ -552,11 +558,9 @@ std::optional<std::filesystem::path> SolverProcess::FindWorkerInDir(const std::f
 
 int64_t SolverProcess::TimeoutReserveMs()
 {
-#ifdef DEBUG
     const char* env = std::getenv("YUTOVO_SOLVER_TIMEOUT_RESERVE_MS");
     if (env && *env)
         return std::atoll(env);
-#endif
     return timeout_reserve_ms;
 }
 
