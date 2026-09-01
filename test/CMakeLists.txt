@@ -6,11 +6,15 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 if(WIN32)
     set(CMAKE_PREFIX_PATH "${INSTALL_PATH}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8 /bigobj /EHsc /MP /FIwin32_prelude.h")
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(mpfr REQUIRED IMPORTED_TARGET mpfr)
+    find_package(GTest CONFIG REQUIRED)
 else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(mpfr REQUIRED IMPORTED_TARGET mpfr)
     pkg_check_modules(gmp REQUIRED IMPORTED_TARGET gmp)
-    pkg_check_modules(gtest REQUIRED gtest)
+    find_package(gtest REQUIRED gtest)
 endif()
 
 enable_testing()
@@ -81,11 +85,12 @@ if(NOT EMSCRIPTEN AND NOT REMOTE_MODE)
     target_compile_definitions(${PROJECT_NAME}-calculator-worker-test PRIVATE YUTOVO_SOLVER_TEST_NO_INTERRUPT)
 
     if(WIN32)
-        find_package(Boost REQUIRED COMPONENTS iostreams)
+        find_package(Boost REQUIRED COMPONENTS iostreams filesystem)
         target_link_libraries(${PROJECT_NAME}-calculator-worker-test PRIVATE
             yutovo-calculator
             yutovo-logger
             Boost::iostreams
+            Boost::filesystem
         )
     else()
         target_link_libraries(${PROJECT_NAME}-calculator-worker-test PRIVATE
