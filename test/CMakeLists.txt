@@ -14,7 +14,6 @@ else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(mpfr REQUIRED IMPORTED_TARGET mpfr)
     pkg_check_modules(gmp REQUIRED IMPORTED_TARGET gmp)
-    find_package(gtest REQUIRED gtest)
 endif()
 
 enable_testing()
