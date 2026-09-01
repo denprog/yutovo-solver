@@ -26,7 +26,7 @@ if(WIN32)
     pkg_check_modules(mpfr REQUIRED IMPORTED_TARGET mpfr)
     find_package(RapidJSON CONFIG REQUIRED)
     #solver_process.cpp uses boost::process for the worker process
-    find_package(Boost REQUIRED COMPONENTS iostreams)
+    find_package(Boost REQUIRED COMPONENTS iostreams filesystem)
 elseif(NOT EMSCRIPTEN)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(mpfr REQUIRED IMPORTED_TARGET mpfr)
@@ -53,7 +53,7 @@ endif()
 set(CMAKE_DEBUG_POSTFIX d)
 
 if(WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8 /bigobj /EHsc /MP")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8 /bigobj /EHsc /MP /FIwin32_prelude.h")
 else()
     if (NOT DEFINED EMSCRIPTEN)
         if (CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -108,6 +108,7 @@ if(NOT EMSCRIPTEN AND NOT REMOTE_MODE)
             yutovo-calculator
             yutovo-logger
             Boost::iostreams
+            Boost::filesystem
         )
     else()
         target_link_libraries(${PROJECT_NAME}-calculator-worker PRIVATE
@@ -145,6 +146,7 @@ else()
             yutovo-calculator
             yutovo-logger
             Boost::iostreams
+            Boost::filesystem
         )
         target_link_libraries(${PROJECT_NAME} PRIVATE RapidJSON rapidjson)
     else()
