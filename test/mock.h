@@ -10,7 +10,7 @@
 
 #include <gtest/gtest.h>
 #include <yutovo-calculator/parser.h>
-#include "service_solver.h"
+#include "calculator_solver.h"
 
 namespace yutovo_test
 {

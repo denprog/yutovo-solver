@@ -10,6 +10,7 @@
 #ifdef YUTOVO_SOLVER_WORKER
 
 #include "service_solver.h"
+#include "calculator_solver.h"
 #include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
 #include <yutovo-logger/logger.h>

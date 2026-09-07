@@ -38,6 +38,8 @@ if(REMOTE_MODE)
         main.cpp
         session.cpp
         service_solver.cpp
+        calculator_solver.cpp
+        python_solver.cpp
         service_config.cpp
         solver_process.cpp
     )
@@ -45,6 +47,8 @@ else()
     add_library(${PROJECT_NAME}
         session.cpp
         service_solver.cpp
+        calculator_solver.cpp
+        python_solver.cpp
         service_config.cpp
         solver_process.cpp
     )
@@ -97,6 +101,8 @@ if(NOT EMSCRIPTEN AND NOT REMOTE_MODE)
     add_executable(${PROJECT_NAME}-calculator-worker
         calculator_worker.cpp
         service_solver.cpp
+        calculator_solver.cpp
+        python_solver.cpp
         service_config.cpp
         solver_process.cpp
     )
@@ -188,12 +194,14 @@ else()
 endif()
 
 install(
-    FILES 
+    FILES
         service_context.h
         session.h
         service_config.h
         types.h
         service_solver.h
+        calculator_solver.h
+        python_solver.h
     DESTINATION ${INSTALL_PATH}/include/${PROJECT_NAME}
     COMPONENT ${PROJECT_NAME}
 )

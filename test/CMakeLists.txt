@@ -76,6 +76,8 @@ if(NOT EMSCRIPTEN AND NOT REMOTE_MODE)
     add_executable(${PROJECT_NAME}-calculator-worker-test
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/calculator_worker.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/service_solver.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/calculator_solver.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/python_solver.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/service_config.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/solver_process.cpp
     )
