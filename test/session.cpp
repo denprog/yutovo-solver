@@ -363,7 +363,7 @@ TEST_F(SessionTest, receive_timeout_kills_uninterruptible_worker)
 
     auto start = std::chrono::steady_clock::now();
     std::string reply;
-    session.Parse(MakeSolveRequest("doc_kill", "solver_kill", 1, static_cast<int>(ResultType::AUTO), "definite_integral(0,1,inv(x+j),x)"), reply);
+    session.Parse(MakeSolveRequest("doc_kill", "solver_kill", 1, static_cast<int>(ResultType::AUTO), "definite_integral(0,1,1/(x+g),x)"), reply);
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
 
     auto doc = ParseReply(reply);
@@ -401,7 +401,7 @@ TEST_F(SessionTest, break_kills_uninterruptible_worker)
         [&]()
         {
             session.Parse(MakeSolveRequest("doc_break_kill", "solver_break_kill", 1, static_cast<int>(ResultType::AUTO),
-                "definite_integral(0,1,inv(x+j),x)"), solve_reply);
+                "definite_integral(0,1,1/(x+g),x)"), solve_reply);
         });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
