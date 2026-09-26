@@ -345,6 +345,8 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             {
                 reply.CopyFrom(first_reply, reply.GetAllocator());
             }
+
+            AddDependencies(reply, &dependencies);
         }
         break;
     case ResultType::REAL:
