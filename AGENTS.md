@@ -106,7 +106,7 @@ auto callback =
 ```
 
 ## Build
-- Use `-j16` maximum for building to avoid OOM kills.
+- Use the number of **physical** cores for `-j` (`lscpu -p=Core,Socket | grep -v '^#' | sort -u | wc -l`), not `nproc` — `nproc` counts hyperthreads too; the build is slower with them and risks OOM kills.
 - For Emscripten builds activate the toolchain first: `source ~/emsdk/emsdk_env.sh`.
 - Web build directories are `build_web/debug` and `build_web/release`.
 - Native Linux build directories are `build/debug` and `build/release`.
@@ -125,8 +125,8 @@ auto callback =
 ## Web build notes
 - Emscripten builds do not use a separate worker; the single document is solved in the main wasm thread and interrupted through the standard giac `break_solving` flag set by `BREAK_SOLVING`.
 - Build and install the solver library from `yutovo-solver/build_web/debug` or `build_web/release`:
-  `make -j16 -C build_web/debug && make install -C build_web/debug`
-- Build `yutovo-web` debug (`make -j16 -C build_web/debug`) and then rebuild the Quasar SPA:
+  `make -j$(lscpu -p=Core,Socket | grep -v '^#' | sort -u | wc -l) -C build_web/debug && make install -C build_web/debug`
+- Build `yutovo-web` debug (`make -j$(lscpu -p=Core,Socket | grep -v '^#' | sort -u | wc -l) -C build_web/debug`) and then rebuild the Quasar SPA:
   `cd src/site && npx quasar build`
 
 ## Tests
