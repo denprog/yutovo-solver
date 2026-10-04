@@ -238,9 +238,9 @@ endif()
 
 if(NOT WIN32)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../keys/yutovo-solver.crt ${CMAKE_CURRENT_BINARY_DIR}/../
-        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../keys/yutovo-solver.key ${CMAKE_CURRENT_BINARY_DIR}/../
-        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../keys/yutovo-solver.pub ${CMAKE_CURRENT_BINARY_DIR}/../
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../../keys/yutovo-solver.crt ${CMAKE_CURRENT_BINARY_DIR}/../
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../../keys/yutovo-solver.key ${CMAKE_CURRENT_BINARY_DIR}/../
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../../keys/yutovo-solver.pub ${CMAKE_CURRENT_BINARY_DIR}/../
     )
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/yutovo-solver.ini ${CMAKE_CURRENT_BINARY_DIR}/../
