@@ -145,7 +145,7 @@ TEST_F(SolverTest, thread_auto_symbolic_expand_after_evalf_error)
 //Helper test for the CodeTest.Code53 test in yutovo-editor
 TEST_F(SolverTest, two_solvers_concurrent)
 {
-    auto solver2 = std::make_unique<CalculatorSolver>("document_guid", "solver_guid-2", parser_context, Language::English, 0, "", false, false);
+    auto solver2 = MakeSolver("solver_guid-2");
     {
         rapidjson::Document request, reply;
         request.SetObject();
@@ -277,13 +277,12 @@ TEST_F(SolverTest, row0_concurrent_with_evalf_error)
 }
 
 //Helper test for the CodeTest.Code53 test in yutovo-editor
-TEST_F(SolverTest, multiple_solvers_same_context)
+TEST_F(SolverTest, multiple_solvers_same_exports)
 {
     std::vector<std::unique_ptr<CalculatorSolver>> solvers;
     for (int i = 0; i < 5; ++i)
     {
-        auto s = std::make_unique<CalculatorSolver>("document_guid", std::string("solver_guid-") + std::to_string(i), parser_context, 
-            Language::English, 0, "", false, false);
+        auto s = MakeSolver(std::string("solver_guid-") + std::to_string(i));
         rapidjson::Document request, reply;
         request.SetObject();
         s->Solve(request, reply);
@@ -309,6 +308,32 @@ TEST_F(SolverTest, multiple_solvers_same_context)
         rapidjson::Document reply;
         solvers[i % solvers.size()]->Solve(request, reply);
     }
+}
+
+//A definition solved with include_document must be visible to another solver of the document through the shared exports
+TEST_F(SolverTest, shared_exports_visible_across_solvers)
+{
+    auto solver2 = MakeSolver("solver_guid-2");
+    {
+        rapidjson::Document request, reply;
+        request.SetObject();
+        solver2->Solve(request, reply);
+    }
+
+    auto definition = MakeRequest(ResultType::REAL, "a=5");
+    definition.AddMember("include_document", true, definition.GetAllocator());
+    rapidjson::Document definition_reply;
+    solver->Solve(definition, definition_reply);
+    ASSERT_FALSE(definition_reply.HasMember("error")) << "Unexpected solver error";
+    ASSERT_TRUE(definition_reply.HasMember("result_type"));
+    ASSERT_EQ(definition_reply["result_type"].GetInt(), static_cast<int>(ResultType::NONE));
+
+    auto request = MakeRequest(ResultType::REAL, "a*2");
+    rapidjson::Document reply;
+    solver2->Solve(request, reply);
+    ASSERT_FALSE(reply.HasMember("error")) << "Unexpected solver error";
+    ASSERT_TRUE(reply.HasMember("result_type"));
+    ASSERT_EQ(reply["result_type"].GetInt(), static_cast<int>(ResultType::REAL));
 }
 
 TEST_F(SolverTest, pending_break_cancels_next_solve)

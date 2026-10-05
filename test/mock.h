@@ -25,7 +25,9 @@ struct SolverTest : public testing::Test
     static rapidjson::Document MakeRequest(ResultType result_type, const char* expression);
     static rapidjson::Document MakeAutoRequest(const char* expression);
 
-    std::shared_ptr<yutovo_calculator::ParserContext> parser_context;
+    std::unique_ptr<CalculatorSolver> MakeSolver(const std::string& solver_guid);
+
+    std::shared_ptr<yutovo_calculator::Export> exports;
     std::unique_ptr<CalculatorSolver> solver;
 };
 

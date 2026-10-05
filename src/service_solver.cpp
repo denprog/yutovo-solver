@@ -223,7 +223,7 @@ bool Solver::GetUnit(const rapidjson::Document& request, Unit& unit)
 
 //Solvers
 
-std::map<std::string, ParserContextPtr> Solvers::parser_contexts;
+std::map<std::string, ExportPtr> Solvers::document_exports;
 
 Solvers::Solvers(ServiceConfig* _service_config, const std::string& _logs_path, bool _log_console, bool _log_file) :
     service_config(_service_config),
@@ -253,14 +253,18 @@ SolverPtr Solvers::GetSolver(const std::string& document_guid, const std::string
     ParserContextPtr parser_context;
     //on desktop the parsers live in a separate worker process, so a proxy solver gets no parser context
 #ifndef YUTOVO_SOLVER_WORKER
-    auto it_p = parser_contexts.find(document_guid);
-    if (it_p != parser_contexts.end())
-        parser_context = it_p->second;
+    ExportPtr exports;
+    auto it_e = document_exports.find(document_guid);
+    if (it_e != document_exports.end())
+        exports = it_e->second;
     else
     {
-        parser_context.reset(new yutovo_calculator::ParserContext());
-        parser_contexts[document_guid] = parser_context;
+        exports.reset(new yutovo_calculator::Export());
+        document_exports[document_guid] = exports;
     }
+    //each solver gets its own parser context, so concurrent solvings of one document don't race on its fields, only the exports are shared
+    parser_context.reset(new yutovo_calculator::ParserContext());
+    parser_context->exports = exports;
 #endif
     
     switch (solver_type)
@@ -347,9 +351,9 @@ void Solvers::ClearExport(const std::string& document_guid, const rapidjson::Doc
         process->SendAction("", "clear_export", request, reply);
     }
 #else
-    auto it = parser_contexts.find(document_guid);
-    if (it != parser_contexts.end())
-        it->second->exports->Clear();
+    auto it = document_exports.find(document_guid);
+    if (it != document_exports.end())
+        it->second->Clear();
 #endif
 }
 
@@ -384,8 +388,8 @@ void Solvers::RemoveTimeouted()
         }
     }
 
-    //remove unusing parser contexts
-    for (auto it_p = parser_contexts.begin(); it_p != parser_contexts.end();)
+    //remove unusing document exports
+    for (auto it_p = document_exports.begin(); it_p != document_exports.end();)
     {
         auto& document_guid = it_p->first;
         auto it = std::find_if(solvers.begin(), solvers.end(), 
@@ -399,7 +403,7 @@ void Solvers::RemoveTimeouted()
                 return it_s != s.second.end();
             });
         if (it == solvers.end())
-            it_p = parser_contexts.erase(it_p);
+            it_p = document_exports.erase(it_p);
         else
             ++it_p;
     }

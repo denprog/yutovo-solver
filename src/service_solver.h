@@ -73,6 +73,7 @@ protected:
 
 typedef std::shared_ptr<Solver> SolverPtr;
 typedef std::shared_ptr<yutovo_calculator::ParserContext> ParserContextPtr;
+typedef std::shared_ptr<yutovo_calculator::Export> ExportPtr;
 
 class Solvers
 {
@@ -93,7 +94,7 @@ private:
     std::mutex solvers_mutex;
     std::map<std::string, std::map<int, SolverPtr>> solvers; //by solver guid and by code_id
     std::map<std::string, SolverLocale> solvers_locales; //by solver guid
-    static std::map<std::string, ParserContextPtr> parser_contexts; //by document guid
+    static std::map<std::string, ExportPtr> document_exports; //shared exported identifiers by document guid
 
     ServiceConfig* service_config;
 
