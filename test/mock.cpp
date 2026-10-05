@@ -12,13 +12,21 @@ namespace yutovo_test
 
 void SolverTest::SetUp()
 {
-    parser_context = std::make_shared<yutovo_calculator::ParserContext>();
-    solver = std::make_unique<CalculatorSolver>("document_guid", "solver_guid", parser_context, Language::English, 0, "", false, false);
+    exports = std::make_shared<yutovo_calculator::Export>();
+    solver = MakeSolver("solver_guid");
 
     //the first Solve call always returns SOLVER_RESTARTED_ERROR
     rapidjson::Document request, reply;
     request.SetObject();
     solver->Solve(request, reply);
+}
+
+std::unique_ptr<CalculatorSolver> SolverTest::MakeSolver(const std::string& solver_guid)
+{
+    //mirrors Solvers::GetSolver: each solver gets its own parser context with the shared document exports
+    auto parser_context = std::make_shared<yutovo_calculator::ParserContext>();
+    parser_context->exports = exports;
+    return std::make_unique<CalculatorSolver>("document_guid", solver_guid, parser_context, Language::English, 0, "", false, false);
 }
 
 rapidjson::Document SolverTest::MakeRequest(ResultType result_type, const char* expression)
