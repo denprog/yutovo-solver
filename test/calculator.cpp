@@ -396,4 +396,48 @@ TEST_F(SolverTest, break_solving_race_condition)
     ASSERT_GT(solves.load(), 0);
 }
 
+
+//German locale: the German word identifiers of the unit systems must resolve
+TEST_F(SolverTest, german_units_solve)
+{
+    auto german_solver = MakeSolver("solver_german");
+    rapidjson::Document locale_request, locale_reply;
+    locale_request.SetObject();
+    locale_reply.SetObject();
+    locale_request.AddMember("language", (int)Language::German, locale_request.GetAllocator());
+    german_solver->SetLocale(locale_request, locale_reply);
+    ASSERT_FALSE(locale_reply.HasMember("error")) << "SetLocale(German) failed";
+
+    //the first solve after SetLocale answers SOLVER_RESTARTED (a restart handshake), retry once
+    auto solve = [&german_solver](const char* expression) -> rapidjson::Document
+        {
+            auto request = MakeAutoRequest(expression);
+            rapidjson::Document reply;
+            reply.SetObject();
+            german_solver->Solve(request, reply);
+            if (reply.HasMember("error") && reply["error"].IsObject() &&
+                reply["error"].HasMember("error_code") &&
+                reply["error"]["error_code"].GetInt() == (int)ErrorCode::SOLVER_RESTARTED_ERROR)
+            {
+                reply.SetObject();
+                german_solver->Solve(request, reply);
+            }
+            return reply;
+        };
+
+    auto reply = solve("1km");
+    ASSERT_FALSE(reply.HasMember("error")) << "1km failed under the German locale";
+
+    reply = solve("1zoll{us}");
+    ASSERT_FALSE(reply.HasMember("error")) << "1zoll{us} failed under the German locale";
+
+    reply = solve("1werst{rus}");
+    ASSERT_FALSE(reply.HasMember("error")) << "1werst{rus} failed under the German locale";
+
+    reply = solve("2jahr");
+    ASSERT_FALSE(reply.HasMember("error")) << "2jahr failed under the German locale";
+
+    reply = solve("1€*2");
+    ASSERT_FALSE(reply.HasMember("error")) << "currency under German failed";
+}
 }
