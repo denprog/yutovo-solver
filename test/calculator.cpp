@@ -440,4 +440,48 @@ TEST_F(SolverTest, german_units_solve)
     reply = solve("1€*2");
     ASSERT_FALSE(reply.HasMember("error")) << "currency under German failed";
 }
+
+//French locale: the French word identifiers of the unit systems must resolve
+TEST_F(SolverTest, french_units_solve)
+{
+    auto french_solver = MakeSolver("solver_french");
+    rapidjson::Document locale_request, locale_reply;
+    locale_request.SetObject();
+    locale_reply.SetObject();
+    locale_request.AddMember("language", (int)Language::French, locale_request.GetAllocator());
+    french_solver->SetLocale(locale_request, locale_reply);
+    ASSERT_FALSE(locale_reply.HasMember("error")) << "SetLocale(French) failed";
+
+    //the first solve after SetLocale answers SOLVER_RESTARTED (a restart handshake), retry once
+    auto solve = [&french_solver](const char* expression) -> rapidjson::Document
+        {
+            auto request = MakeAutoRequest(expression);
+            rapidjson::Document reply;
+            reply.SetObject();
+            french_solver->Solve(request, reply);
+            if (reply.HasMember("error") && reply["error"].IsObject() &&
+                reply["error"].HasMember("error_code") &&
+                reply["error"]["error_code"].GetInt() == (int)ErrorCode::SOLVER_RESTARTED_ERROR)
+            {
+                reply.SetObject();
+                french_solver->Solve(request, reply);
+            }
+            return reply;
+        };
+
+    auto reply = solve("1km");
+    ASSERT_FALSE(reply.HasMember("error")) << "1km failed under the French locale";
+
+    reply = solve("1pouce{us}");
+    ASSERT_FALSE(reply.HasMember("error")) << "1pouce{us} failed under the French locale";
+
+    reply = solve("1verste{rus}");
+    ASSERT_FALSE(reply.HasMember("error")) << "1verste{rus} failed under the French locale";
+
+    reply = solve("2an");
+    ASSERT_FALSE(reply.HasMember("error")) << "2an failed under the French locale";
+
+    reply = solve("1€*2");
+    ASSERT_FALSE(reply.HasMember("error")) << "currency under French failed";
+}
 }

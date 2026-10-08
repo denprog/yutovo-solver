@@ -13,6 +13,10 @@ WebSocket-based calculation backend for the Yutovo editor.
 - `AUTO` mode tries symbolic types last in `results_order[8]`.
 - On Linux GMP/MPFR are inherited transitively from `yutovo-calculator`; `src/CMakeLists.txt` calls `pkg_check_modules(mpfr REQUIRED IMPORTED_TARGET mpfr)` and `pkg_check_modules(gmp REQUIRED IMPORTED_TARGET gmp)` to satisfy the imported target's interface.
 
+## Agent Rules
+
+- **Never commit without explicit user permission.** Do not run `git commit`, `git push`, `git reset`, `git rebase`, or any other git mutations unless explicitly asked to do so. Ask for confirmation each time when git mutations are needed.
+
 ## Code Style
 - Opening braces always go on a new line (Allman style):
   ```cpp
