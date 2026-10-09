@@ -484,4 +484,49 @@ TEST_F(SolverTest, french_units_solve)
     reply = solve("1€*2");
     ASSERT_FALSE(reply.HasMember("error")) << "currency under French failed";
 }
+
+//Italian locale: the Italian word identifiers of the unit systems must resolve
+TEST_F(SolverTest, italian_units_solve)
+{
+    auto italian_solver = MakeSolver("solver_italian");
+    rapidjson::Document locale_request, locale_reply;
+    locale_request.SetObject();
+    locale_reply.SetObject();
+    locale_request.AddMember("language", (int)Language::Italian, locale_request.GetAllocator());
+    italian_solver->SetLocale(locale_request, locale_reply);
+    ASSERT_FALSE(locale_reply.HasMember("error")) << "SetLocale(Italian) failed";
+
+    //the first solve after SetLocale answers SOLVER_RESTARTED (a restart handshake), retry once
+    auto solve = [&italian_solver](const char* expression) -> rapidjson::Document
+        {
+            auto request = MakeAutoRequest(expression);
+            rapidjson::Document reply;
+            reply.SetObject();
+            italian_solver->Solve(request, reply);
+            if (reply.HasMember("error") && reply["error"].IsObject() &&
+                reply["error"].HasMember("error_code") &&
+                reply["error"]["error_code"].GetInt() == (int)ErrorCode::SOLVER_RESTARTED_ERROR)
+            {
+                reply.SetObject();
+                italian_solver->Solve(request, reply);
+            }
+            return reply;
+        };
+
+    auto reply = solve("1km");
+    ASSERT_FALSE(reply.HasMember("error")) << "1km failed under the Italian locale";
+
+    reply = solve("1pollice{us}");
+    ASSERT_FALSE(reply.HasMember("error")) << "1pollice{us} failed under the Italian locale";
+
+    reply = solve("1versta{rus}");
+    ASSERT_FALSE(reply.HasMember("error")) << "1versta{rus} failed under the Italian locale";
+
+    reply = solve("2anno");
+    ASSERT_FALSE(reply.HasMember("error")) << "2anno failed under the Italian locale";
+
+    reply = solve("1€*2");
+    ASSERT_FALSE(reply.HasMember("error")) << "currency under Italian failed";
+}
+
 }

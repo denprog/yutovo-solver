@@ -314,7 +314,7 @@ void Solvers::SetLocale(const std::string& solver_guid, const yutovo_calculator:
     const rapidjson::Document& request, rapidjson::Document& reply)
 {
     //an out of range language would throw from the parser constructors when a solver is created
-    if (language < yutovo_calculator::Language::English || language > yutovo_calculator::Language::French)
+    if (language < yutovo_calculator::Language::English || language > yutovo_calculator::Language::Italian)
         return;
 
     std::lock_guard<std::mutex> lock(solvers_mutex);
