@@ -54,7 +54,10 @@ else()
     )
 endif()
 
-set(CMAKE_DEBUG_POSTFIX d)
+if(WIN32)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE $<$<CONFIG:Debug>:NDEBUG>)
+    target_compile_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Debug>:/O2>)
+endif()
 
 if(WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8 /bigobj /EHsc /MP /FIwin32_prelude.h")
@@ -134,6 +137,12 @@ if(NOT EMSCRIPTEN AND NOT REMOTE_MODE)
         DESTINATION ${INSTALL_PATH}/bin
         COMPONENT ${PROJECT_NAME}
     )
+    if(WIN32)
+        target_compile_definitions(${PROJECT_NAME}-calculator-worker PRIVATE $<$<CONFIG:Debug>:NDEBUG>)
+        target_compile_options(${PROJECT_NAME}-calculator-worker PRIVATE $<$<CONFIG:Debug>:/O2>)
+        #the worker runs the recursive-descent grammar of yutovo-calculator that allows 512 nested levels and needs more stack
+        target_link_options(${PROJECT_NAME}-calculator-worker PRIVATE "LINKER:/STACK:16777216")
+    endif()
 endif()
 
 if(REMOTE_MODE)
@@ -191,6 +200,38 @@ else()
         DESTINATION ${INSTALL_PATH}/lib
         COMPONENT ${PROJECT_NAME}
     )
+endif()
+
+if(NOT EMSCRIPTEN)
+    if(WIN32)
+        set(YUTOVO_DEBUG_LIBRARY "${PROJECT_NAME}d.lib")
+        set(YUTOVO_RELEASE_LIBRARY "${PROJECT_NAME}.lib")
+    else()
+        set(YUTOVO_DEBUG_LIBRARY "lib${PROJECT_NAME}d.a")
+        set(YUTOVO_RELEASE_LIBRARY "lib${PROJECT_NAME}.a")
+    endif()
+
+    file(GENERATE
+        OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-release.cmake"
+        CONTENT "set_property(TARGET ${PROJECT_NAME} APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+        set_target_properties(${PROJECT_NAME} PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE \"CXX\"
+        IMPORTED_LOCATION_RELEASE \"${INSTALL_PATH}/lib/${YUTOVO_RELEASE_LIBRARY}\")"
+    )
+
+    install(
+        FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-release.cmake"
+        DESTINATION ${INSTALL_PATH}/lib/cmake/${PROJECT_NAME}
+        COMPONENT ${PROJECT_NAME}
+    )
+
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR DEFINED CMAKE_CONFIGURATION_TYPES)
+        install(
+            FILES $<TARGET_FILE:${PROJECT_NAME}>
+            DESTINATION ${INSTALL_PATH}/lib
+            RENAME ${YUTOVO_RELEASE_LIBRARY}
+            COMPONENT ${PROJECT_NAME}
+        )
+    endif()
 endif()
 
 install(

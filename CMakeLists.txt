@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.10)
 
+if(WIN32 AND POLICY CMP0091)
+    cmake_policy(SET CMP0091 NEW)
+endif()
+
 project(yutovo-solver LANGUAGES CXX C)
 
 set(PROJECT_LICENSE "GPL-3.0-only")
@@ -8,13 +12,20 @@ message(STATUS "Project license: ${PROJECT_LICENSE}")
 message(STATUS "CXX Compiler ID: ${CMAKE_CXX_COMPILER_ID}")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_compile_definitions(DEBUG)
+    if(NOT WIN32)
+        add_compile_definitions(DEBUG)
+    endif()
 endif()
 
 if(WIN32)
     set(INSTALL_PATH "$ENV{VCPKG_ROOT}/installed/x64-windows")
     #giac headers pull in windows.h before boost::asio, exclude winsock.h to avoid the clash
     add_compile_definitions(WIN32_LEAN_AND_MEAN)
+    #the prebuilt giac library exists only as a release-CRT (/MD) build and MSVC cannot link /MDd objects against it
+    set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreadedDLL)
+    set(CMAKE_MAP_IMPORTED_CONFIG_DEBUG Release)
+    set(CMAKE_CXX_FLAGS_DEBUG "/Zi /Od")
+    set(CMAKE_C_FLAGS_DEBUG "/Zi /Od")
 else()
     set(INSTALL_PATH "$ENV{YUTOVO_DEPLOY}")
 endif()
