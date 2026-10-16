@@ -19,7 +19,7 @@
 //preload the real header so the boost::asio guard does not reject the translation unit
 #include <winsock2.h>
 #endif
-#include <boost/process.hpp>
+#include <boost/process/v2/popen.hpp>
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
@@ -90,13 +90,13 @@ private:
     std::mutex send_mutex;
     std::mutex receive_mutex;
     std::string receive_buffer;
-    std::mutex pipes_mutex; //protects the in/out/child pointers across restarts and terminations
+    std::mutex pipes_mutex; //protects the child pointers across restarts and terminations
     std::mutex break_mutex;
     std::condition_variable break_cv;
 
-    std::unique_ptr<boost::process::opstream> in;
-    std::unique_ptr<boost::process::ipstream> out;
-    std::unique_ptr<boost::process::child> child;
+    std::unique_ptr<boost::process::v2::popen> child;
+    //the pipes of a terminated worker are kept until the next start, an in-flight receive may still poll them
+    std::unique_ptr<boost::process::v2::popen> retired_child;
 
     Logger* logger = nullptr;
 };

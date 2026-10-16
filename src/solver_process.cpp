@@ -10,7 +10,8 @@
 #ifdef YUTOVO_SOLVER_WORKER
 
 #include "solver_process.h"
-#include <boost/process.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/write.hpp>
 #include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
 #include <yutovo-calculator/parser_exception.h>
@@ -24,7 +25,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#include <boost/process/v1/windows.hpp>
+#include <boost/process/v2/windows/creation_flags.hpp>
 #else
 #include <cerrno>
 #include <poll.h>
@@ -43,6 +44,9 @@ static std::once_flag ignore_sigpipe_once;
 
 static std::mutex worker_registry_mutex;
 static std::map<std::string, std::weak_ptr<SolverProcess>> worker_registry; //worker processes by document guid
+
+//Never run, it only backs the executor carried by the worker pipes and process handles
+static boost::asio::io_context worker_io_context;
 
 //SolverProcess
 
@@ -278,32 +282,30 @@ bool SolverProcess::EnsureStarted()
 
     //worker stdout is the IPC channel, so its console logging must stay off
     std::lock_guard<std::mutex> pipes_lock(pipes_mutex);
-    in.reset(new boost::process::opstream());
-    out.reset(new boost::process::ipstream());
+    retired_child.reset();
     receive_buffer.clear();
     try
     {
-        child.reset(new boost::process::child(exe, document_guid, logs_path, log_file ? "1" : "0",
-            boost::process::std_in < *in, boost::process::std_out > *out, boost::process::std_err > stderr
+        //popen wires stdin/stdout to its pipes, stderr is inherited by default
+        child.reset(new boost::process::v2::popen(worker_io_context, exe,
+            {document_guid, logs_path, log_file ? "1" : "0"}
 #ifdef _WIN32
             //the desktop app is a GUI process, without CREATE_NO_WINDOW windows allocates a visible console for the worker
-            , boost::process::windows::create_no_window
+            , boost::process::v2::windows::process_creation_flags<CREATE_NO_WINDOW>()
 #endif
             ));
     }
     catch (const std::exception& e)
     {
         logger->Error("Failed to start calculator worker: {}", e.what());
-        in.reset();
-        out.reset();
+        child.reset();
         return false;
     }
 
-    if (!child->running())
+    boost::system::error_code running_ec;
+    if (!child->running(running_ec))
     {
         logger->Error("Failed to start calculator worker");
-        in.reset();
-        out.reset();
         child.reset();
         return false;
     }
@@ -337,21 +339,24 @@ void SolverProcess::DoTerminate()
     alive = false;
     request_pending = false;
 
-    std::unique_ptr<boost::process::child> finished_child;
+    std::optional<boost::process::v2::process_handle> finished_handle;
     {
         std::lock_guard<std::mutex> pipes_lock(pipes_mutex);
-        finished_child = std::move(child);
+        retired_child = std::move(child);
+        if (retired_child)
+            finished_handle = retired_child->detach();
     }
-    if (finished_child)
+    if (finished_handle)
     {
-        //reap the child asynchronously so this thread never blocks
+        //reap the killed worker asynchronously so this thread never blocks
         std::thread(
-            [c = std::move(finished_child)]() mutable
+            [h = std::move(*finished_handle)]() mutable
             {
                 try
                 {
-                    if (c)
-                        c->wait();
+                    boost::system::error_code ec;
+                    boost::process::v2::native_exit_code_type exit_status = 0;
+                    h.wait(exit_status, ec);
                 }
                 catch (...)
                 {
@@ -369,11 +374,11 @@ void SolverProcess::DoTerminate()
 void SolverProcess::SendLine(const std::string& line)
 {
     std::lock_guard<std::mutex> pipes_lock(pipes_mutex);
-    if (!in)
+    if (!child)
         return;
     std::lock_guard<std::mutex> lock(send_mutex);
-    *in << line;
-    in->flush();
+    boost::system::error_code ec;
+    boost::asio::write(child->get_stdin(), boost::asio::buffer(line), ec);
 }
 
 //Returns the number of bytes read into the buffer, 0 when nothing arrived during the wait, -1 when the pipe is closed
@@ -427,17 +432,13 @@ bool SolverProcess::ReceiveLine(std::string& line, int64_t timeout_ms)
     {
         //the pipe object is only read here and replaced in EnsureStarted between requests
         std::lock_guard<std::mutex> pipes_lock(pipes_mutex);
-        if (out)
+        if (child)
         {
-            auto* pipebuf = dynamic_cast<boost::process::basic_pipebuf<char>*>(out->rdbuf());
-            if (pipebuf)
-            {
 #ifdef _WIN32
-                pipe_handle = pipebuf->pipe().native_source();
+            pipe_handle = child->get_stdout().native_handle();
 #else
-                pipe_handle = reinterpret_cast<void*>(static_cast<intptr_t>(pipebuf->pipe().native_source()));
+            pipe_handle = reinterpret_cast<void*>(static_cast<intptr_t>(child->get_stdout().native_handle()));
 #endif
-            }
         }
     }
     if (!pipe_handle)

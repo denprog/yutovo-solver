@@ -84,14 +84,12 @@ if(NOT EMSCRIPTEN AND NOT REMOTE_MODE)
 
     set_target_properties(${PROJECT_NAME}-calculator-worker-test PROPERTIES DEBUG_POSTFIX ${WORKER_TEST_DEBUG_POSTFIX})
     target_compile_definitions(${PROJECT_NAME}-calculator-worker-test PRIVATE YUTOVO_SOLVER_TEST_NO_INTERRUPT)
-
+    find_package(Boost REQUIRED COMPONENTS process)
     if(WIN32)
-        find_package(Boost REQUIRED COMPONENTS iostreams filesystem)
         target_link_libraries(${PROJECT_NAME}-calculator-worker-test PRIVATE
             yutovo-calculator
             yutovo-logger
-            Boost::iostreams
-            Boost::filesystem
+            Boost::process
         )
     else()
         target_link_libraries(${PROJECT_NAME}-calculator-worker-test PRIVATE
@@ -100,6 +98,7 @@ if(NOT EMSCRIPTEN AND NOT REMOTE_MODE)
             pthread
             yutovo-calculator
             yutovo-logger
+            Boost::process
         )
     endif()
     

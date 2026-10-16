@@ -25,12 +25,14 @@ if(WIN32)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(mpfr REQUIRED IMPORTED_TARGET mpfr)
     find_package(RapidJSON CONFIG REQUIRED)
-    #solver_process.cpp uses boost::process for the worker process
-    find_package(Boost REQUIRED COMPONENTS iostreams filesystem)
 elseif(NOT EMSCRIPTEN)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(mpfr REQUIRED IMPORTED_TARGET mpfr)
     pkg_check_modules(gmp REQUIRED IMPORTED_TARGET gmp)
+endif()
+
+if(NOT EMSCRIPTEN)
+    find_package(Boost REQUIRED COMPONENTS process)
 endif()
 
 if(REMOTE_MODE)
@@ -113,8 +115,7 @@ if(NOT EMSCRIPTEN AND NOT REMOTE_MODE)
         target_link_libraries(${PROJECT_NAME}-calculator-worker PRIVATE
             yutovo-calculator
             yutovo-logger
-            Boost::iostreams
-            Boost::filesystem
+            Boost::process
         )
     else()
         target_link_libraries(${PROJECT_NAME}-calculator-worker PRIVATE
@@ -123,6 +124,7 @@ if(NOT EMSCRIPTEN AND NOT REMOTE_MODE)
             pthread
             yutovo-calculator
             yutovo-logger
+            Boost::process
         )
     endif()
     target_include_directories(${PROJECT_NAME}-calculator-worker PUBLIC
@@ -146,13 +148,15 @@ if(REMOTE_MODE)
         yutovo-calculator
         yutovo-logger
     )
+    if(NOT EMSCRIPTEN)
+        target_link_libraries(${PROJECT_NAME} PRIVATE Boost::process)
+    endif()
 else()
     if(WIN32)
         target_link_libraries(${PROJECT_NAME} PRIVATE
             yutovo-calculator
             yutovo-logger
-            Boost::iostreams
-            Boost::filesystem
+            Boost::process
         )
         target_link_libraries(${PROJECT_NAME} PRIVATE RapidJSON rapidjson)
     else()
@@ -162,6 +166,9 @@ else()
             yutovo-calculator
             yutovo-logger
         )
+        if(NOT EMSCRIPTEN)
+            target_link_libraries(${PROJECT_NAME} PRIVATE Boost::process)
+        endif()
     endif()
 endif()
 
