@@ -69,6 +69,14 @@ if(NOT WIN32)
     gtest_discover_tests(${PROJECT_NAME}_tests)
 endif()
 
+if(WIN32)
+    add_custom_command(TARGET ${PROJECT_NAME}_tests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:${PROJECT_NAME}-calculator-worker>"
+        "$<TARGET_FILE_DIR:${PROJECT_NAME}_tests>"
+    )
+endif()
+
 #a worker build that cannot interrupt its own giac evaluations, used by tests of the parent kill path
 if(NOT EMSCRIPTEN AND NOT REMOTE_MODE)
     #the postfix variable lives in the src directory scope, mirror it for this target
@@ -107,6 +115,18 @@ if(NOT EMSCRIPTEN AND NOT REMOTE_MODE)
         $<$<CONFIG:Debug>:${INSTALL_PATH}/include>
         $<$<CONFIG:Release>:${INSTALL_PATH}/include>
     )
+    if(WIN32)
+        target_compile_definitions(${PROJECT_NAME}-calculator-worker-test PRIVATE $<$<CONFIG:Debug>:NDEBUG>)
+        target_compile_options(${PROJECT_NAME}-calculator-worker-test PRIVATE $<$<CONFIG:Debug>:/O2>)
+    endif()
+endif()
+
+if(WIN32)
+    #the recursive-descent grammar of yutovo-calculator allows 512 nested levels
+    #(max_recursion_depth in expression.h) and needs more stack than the Windows default
+    #1 MiB, Linux builds run with the 8 MiB default
+    target_link_options(${PROJECT_NAME}_tests PRIVATE "LINKER:/STACK:16777216")
+    target_link_options(${PROJECT_NAME}-calculator-worker-test PRIVATE "LINKER:/STACK:16777216")
 endif()
 
 install(

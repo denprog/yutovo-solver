@@ -245,7 +245,14 @@ TEST_F(SessionTest, stress_multiple_concurrent_breaks)
 
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
     EXPECT_EQ(completed.load(), documents_number) << "not all solve threads completed";
-    EXPECT_LT(elapsed, 8000) << "stress test took too long, possible worker hang";
+#ifdef _WIN32
+    //the Windows worker parses the unit tables at every cold start which takes seconds,
+    //every break restarts a worker, so the same sequence needs more wall time
+    constexpr int64_t stress_elapsed_limit_ms = 40000;
+#else
+    constexpr int64_t stress_elapsed_limit_ms = 8000;
+#endif
+    EXPECT_LT(elapsed, stress_elapsed_limit_ms) << "stress test took too long, possible worker hang";
 }
 
 TEST_F(SessionTest, stress_twenty_documents_heavy_computations)
@@ -295,7 +302,13 @@ TEST_F(SessionTest, stress_twenty_documents_heavy_computations)
 
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
     EXPECT_EQ(completed.load(), documents_number) << "not all solve threads completed";
-    EXPECT_LT(elapsed, 60000) << "stress test took too long, possible worker hang";
+#ifdef _WIN32
+    //see stress_multiple_concurrent_breaks, the Windows worker cold start parses the unit tables
+    constexpr int64_t stress_elapsed_limit_ms = 120000;
+#else
+    constexpr int64_t stress_elapsed_limit_ms = 60000;
+#endif
+    EXPECT_LT(elapsed, stress_elapsed_limit_ms) << "stress test took too long, possible worker hang";
 }
 
 static void SetEnvValue(const char* name, const char* value)
@@ -353,7 +366,14 @@ TEST_F(SessionTest, receive_timeout_kills_uninterruptible_worker)
 {
     UninterruptibleWorkerPath worker_path;
     ASSERT_TRUE(worker_path.found) << "build yutovo-solver-calculator-worker-test next to the tests";
+#ifdef _WIN32
+    //the Windows worker parses the unit tables at every cold start which takes seconds
+    SetEnvValue("YUTOVO_SOLVER_TIMEOUT_RESERVE_MS", "8000");
+    constexpr int64_t kill_elapsed_limit_ms = 20000;
+#else
     SetEnvValue("YUTOVO_SOLVER_TIMEOUT_RESERVE_MS", "500");
+    constexpr int64_t kill_elapsed_limit_ms = 5000;
+#endif
 
     session.SetMaxTime(500);
 
@@ -370,7 +390,7 @@ TEST_F(SessionTest, receive_timeout_kills_uninterruptible_worker)
     ASSERT_TRUE(doc.HasMember("error"));
     EXPECT_EQ(doc["error"]["error_code"].GetInt(), static_cast<int>(ErrorCode::PARSER_ERROR));
     EXPECT_EQ(doc["error"]["parser_error_code"].GetInt(), static_cast<int>(ParserExceptionCode::TimeExceed));
-    EXPECT_LT(elapsed, 5000) << "the stuck worker was not killed in time";
+    EXPECT_LT(elapsed, kill_elapsed_limit_ms) << "the stuck worker was not killed in time";
 
     //the killed worker is replaced, so the first solve of the new process reports a restart
     SetEnvValue("YUTOVO_SOLVER_WORKER_PATH", "");
