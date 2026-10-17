@@ -11,6 +11,7 @@
 #include "service_config.h"
 
 #ifdef REMOTE_MODE
+#include <atomic>
 #include <boost/beast/core.hpp>
 #include <boost/beast/ssl.hpp>
 #include <boost/beast/websocket.hpp>
@@ -55,7 +56,9 @@ protected:
     void MakeReply(const rapidjson::Document& json, std::string& reply);
 
 protected:
-    static int sessions_count;
+#ifdef REMOTE_MODE
+    static std::atomic<int> sessions_count;
+#endif
 
     Logger* logger = nullptr;
 

@@ -16,7 +16,9 @@ namespace yutovo_solver
 
 //Session
 
-int Session::sessions_count = 0;
+#ifdef REMOTE_MODE
+std::atomic<int> Session::sessions_count = 0;
+#endif
 
 Session::Session(ServiceContext* _service_context, const std::string& _logs_path, bool _log_console, bool _log_file) :
     service_context(_service_context),
