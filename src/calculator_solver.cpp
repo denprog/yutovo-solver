@@ -101,14 +101,14 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             logger->Error("id error");
             throw ServiceException{ErrorCode::NO_FIELD_ERROR};
         }
-    }
 
-    solving_time_stamp = 0;
-    if (!GetTimestamp(request, solving_time_stamp))
-    {
-        logger->Error("result_type error");
-        ReplyError(ErrorCode::NO_FIELD_ERROR, reply);
-        return;
+        solving_time_stamp = 0;
+        if (!GetTimestamp(request, solving_time_stamp))
+        {
+            logger->Error("result_type error");
+            ReplyError(ErrorCode::NO_FIELD_ERROR, reply);
+            return;
+        }
     }
 
     //clear the giac interrupt flags that could be left from a previous break
