@@ -126,6 +126,10 @@ auto callback =
 - The editor side (`yutovo-editor/src/solver.cpp`) drops queued solve tasks of a deleted result row by the row's `task_guid` when breaking (the logical id is reused across remakes), otherwise a stale heavy solve can outlive its row and burn the full `max_time`.
 - Worker lookup order: explicit `YUTOVO_SOLVER_WORKER_PATH` → directory next to the running executable and its `../src` → `YUTOVO_DEPLOY/bin` → current directory → `PATH`. The worker executable must always sit next to the main one: `yutovo-editor/test/CMakeLists.txt` copies it next to the tests binary as a POST_BUILD step from `${INSTALL_PATH}/bin`, so run `make install` in `yutovo-solver` before rebuilding the editor.
 
+## REMOTE_MODE
+- `REMOTE_MODE` (the standalone WebSocket daemon built from `main.cpp`, the only consumer of `yutovo-solver.ini` and the only place `Solvers::RemoveTimeouted()` and `idle_timeout` could matter) is obsolete and not deployed — issues that only manifest there, e.g. the never-called `RemoveTimeouted()`, are not relevant for the shipped editor/web builds.
+- Outside it there is no solver leak: a `Document` owns its `Solver` with the whole `ServiceContext` by value, so closing a document (on the web `document.reset()` before loading the next one) frees all solvers, parser contexts and worker processes. Do not wire `RemoveTimeouted()` into the editor/web: an idle-timeout sweep would wipe the state of an open but idle document (the next edit gets `SOLVER_RESTARTED_ERROR` and a full resync).
+
 ## Web build notes
 - Emscripten builds do not use a separate worker; the single document is solved in the main wasm thread and interrupted through the standard giac `break_solving` flag set by `BREAK_SOLVING`.
 - Build and install the solver library from `yutovo-solver/build_web/debug` or `build_web/release`:
