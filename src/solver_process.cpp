@@ -306,6 +306,9 @@ bool SolverProcess::EnsureStarted()
     if (!child->running(running_ec))
     {
         logger->Error("Failed to start calculator worker");
+        //the worker died right after the spawn, reap it before dropping the handle or it stays a zombie
+        boost::system::error_code wait_ec;
+        child->wait(wait_ec);
         child.reset();
         return false;
     }
