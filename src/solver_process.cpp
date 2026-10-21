@@ -382,6 +382,8 @@ void SolverProcess::SendLine(const std::string& line)
     std::lock_guard<std::mutex> lock(send_mutex);
     boost::system::error_code ec;
     boost::asio::write(child->get_stdin(), boost::asio::buffer(line), ec);
+    if (ec)
+        logger->Error("Failed to write to the calculator worker stdin: {}", ec.message());
 }
 
 //Returns the number of bytes read into the buffer, 0 when nothing arrived during the wait, -1 when the pipe is closed
