@@ -32,14 +32,14 @@ public:
     virtual void SetMaxTime(const uint64_t _max_time);
 
 private:
-    void SolveReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
-    void SolveInteger(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
-    void SolveRational(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
-    void SolveComplex(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
-    void SolveArrayReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
-    void SolveSymbolicReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
-    void SolveSymbolicRational(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
-    void SolveSymbolicComplex(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
+    void SolveReal(const LogicalId& current_solving_id, const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
+    void SolveInteger(const LogicalId& current_solving_id, const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
+    void SolveRational(const LogicalId& current_solving_id, const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
+    void SolveComplex(const LogicalId& current_solving_id, const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
+    void SolveArrayReal(const LogicalId& current_solving_id, const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
+    void SolveSymbolicReal(const LogicalId& current_solving_id, const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
+    void SolveSymbolicRational(const LogicalId& current_solving_id, const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
+    void SolveSymbolicComplex(const LogicalId& current_solving_id, const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies);
 
     void AddReal(rapidjson::Document& reply, rapidjson::Value& obj, const Real& value, const int exponent_size, const int precision);
 

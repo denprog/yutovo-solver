@@ -94,6 +94,8 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
         return;
     }
 
+    LogicalId current_solving_id;
+    uint64_t current_time_stamp = 0;
     {
         std::lock_guard<std::mutex> lock(solving_id_lock);
         if (!GetLogicalId(request, solving_id))
@@ -109,6 +111,10 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             ReplyError(ErrorCode::NO_FIELD_ERROR, reply);
             return;
         }
+
+        //a snapshot for this call, concurrent Solve calls on the same solver must not read each other's id
+        current_solving_id = solving_id;
+        current_time_stamp = solving_time_stamp;
     }
 
     //clear the giac interrupt flags that could be left from a previous break
@@ -118,13 +124,13 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
     {
         //check for breaking the solving before it's started
         std::lock_guard<std::mutex> l(break_lock);
-        auto it = break_solvings.find(solving_id);
+        auto it = break_solvings.find(current_solving_id);
         if (it != break_solvings.end())
         {
-            if (it->second >= solving_time_stamp)
+            if (it->second >= current_time_stamp)
             {
                 break_solvings.erase(it);
-                ReplyError(ParserException(solving_id, ParserExceptionCode::Break, -1, -1), reply);
+                ReplyError(ParserException(current_solving_id, ParserExceptionCode::Break, -1, -1), reply);
                 return;
             }
         }
@@ -194,7 +200,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                     switch (t)
                     {
                     case ResultType::REAL:
-                        SolveReal(request, r, &dependencies);
+                        SolveReal(current_solving_id, request, r, &dependencies);
                         reply.CopyFrom(r, reply.GetAllocator());
                         if (exit_on_success)
                             return;
@@ -205,7 +211,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                         }
                         break;
                     case ResultType::INTEGER:
-                        SolveInteger(request, r, &dependencies);
+                        SolveInteger(current_solving_id, request, r, &dependencies);
                         reply.CopyFrom(r, reply.GetAllocator());
                         if (exit_on_success)
                             return;
@@ -216,7 +222,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                         }
                         break;
                     case ResultType::RATIONAL:
-                        SolveRational(request, r, &dependencies);
+                        SolveRational(current_solving_id, request, r, &dependencies);
                         reply.CopyFrom(r, reply.GetAllocator());
                         if (exit_on_success)
                             return;
@@ -227,7 +233,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                         }
                         break;
                     case ResultType::COMPLEX:
-                        SolveComplex(request, r, &dependencies);
+                        SolveComplex(current_solving_id, request, r, &dependencies);
                         reply.CopyFrom(r, reply.GetAllocator());
                         if (exit_on_success)
                             return;
@@ -238,7 +244,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                         }
                         break;
                     case ResultType::ARRAY_REAL:
-                        SolveArrayReal(request, r, &dependencies);
+                        SolveArrayReal(current_solving_id, request, r, &dependencies);
                         reply.CopyFrom(r, reply.GetAllocator());
                         if (exit_on_success)
                             return;
@@ -249,7 +255,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                         }
                         break;
                     case ResultType::SYMBOLIC_REAL:
-                        SolveSymbolicReal(request, r, &dependencies);
+                        SolveSymbolicReal(current_solving_id, request, r, &dependencies);
                         reply.CopyFrom(r, reply.GetAllocator());
                         if (exit_on_success)
                             return;
@@ -260,7 +266,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                         }
                         break;
                     case ResultType::SYMBOLIC_RATIONAL:
-                        SolveSymbolicRational(request, r, &dependencies);
+                        SolveSymbolicRational(current_solving_id, request, r, &dependencies);
                         reply.CopyFrom(r, reply.GetAllocator());
                         if (exit_on_success)
                             return;
@@ -271,7 +277,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
                         }
                         break;
                     case ResultType::SYMBOLIC_COMPLEX:
-                        SolveSymbolicComplex(request, r, &dependencies);
+                        SolveSymbolicComplex(current_solving_id, request, r, &dependencies);
                         reply.CopyFrom(r, reply.GetAllocator());
                         if (exit_on_success)
                             return;
@@ -363,28 +369,28 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
             switch (result_type)
             {
             case ResultType::REAL:
-                SolveReal(request, reply, &dependencies);
+                SolveReal(current_solving_id, request, reply, &dependencies);
                 break;
             case ResultType::INTEGER:
-                SolveInteger(request, reply, &dependencies);
+                SolveInteger(current_solving_id, request, reply, &dependencies);
                 break;
             case ResultType::RATIONAL:
-                SolveRational(request, reply, &dependencies);
+                SolveRational(current_solving_id, request, reply, &dependencies);
                 break;
             case ResultType::COMPLEX:
-                SolveComplex(request, reply, &dependencies);
+                SolveComplex(current_solving_id, request, reply, &dependencies);
                 break;
             case ResultType::ARRAY_REAL:
-                SolveArrayReal(request, reply, &dependencies);
+                SolveArrayReal(current_solving_id, request, reply, &dependencies);
                 break;
             case ResultType::SYMBOLIC_REAL:
-                SolveSymbolicReal(request, reply, &dependencies);
+                SolveSymbolicReal(current_solving_id, request, reply, &dependencies);
                 break;
             case ResultType::SYMBOLIC_RATIONAL:
-                SolveSymbolicRational(request, reply, &dependencies);
+                SolveSymbolicRational(current_solving_id, request, reply, &dependencies);
                 break;
             case ResultType::SYMBOLIC_COMPLEX:
-                SolveSymbolicComplex(request, reply, &dependencies);
+                SolveSymbolicComplex(current_solving_id, request, reply, &dependencies);
                 break;
             case ResultType::AUTO:
             case ResultType::NONE:
@@ -412,7 +418,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
     if (timeout_watchdog.fired.load() && (reply.HasMember("error") || reply.ObjectEmpty()))
     {
         logger->Error("Solve interrupted by the time watchdog");
-        ReplyError(ParserException(solving_id, ParserExceptionCode::TimeExceed, -1, -1), reply);
+        ReplyError(ParserException(current_solving_id, ParserExceptionCode::TimeExceed, -1, -1), reply);
     }
 }
 
@@ -1009,7 +1015,7 @@ bool CalculatorSolver::SetLocale(const rapidjson::Document& request, rapidjson::
     return true;
 }
 
-void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
+void CalculatorSolver::SolveReal(const LogicalId& current_solving_id, const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
 {
     std::string expression = request["expression"].GetString();
     
@@ -1041,7 +1047,7 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
     parser_context->Init(max_time);
     parser_context->no_result = false;
     parser_context->include_document = include_document;
-    Real si_res = real_parser.Parse(solving_id, expression, dependencies, default_angle_measure, result_angle_measure, precision, parser_context.get());
+    Real si_res = real_parser.Parse(current_solving_id, expression, dependencies, default_angle_measure, result_angle_measure, precision, parser_context.get());
     if (parser_context->no_result)
     {
         AddDependencies(reply, dependencies);
@@ -1052,9 +1058,9 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
     Real res;
     Unit unit;
     if (GetUnit(request, unit))
-        res = real_parser.CastToUnit(solving_id, si_res, unit);
+        res = real_parser.CastToUnit(current_solving_id, si_res, unit);
     else
-        res = real_parser.GetSuitableUnit(solving_id, si_res);
+        res = real_parser.GetSuitableUnit(current_solving_id, si_res);
 
     bool mantissa_sign;
     std::string mantissa;
@@ -1082,7 +1088,7 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
     if (!si_res.unit.IsEmpty())
     {
         std::vector<Unit> cast_units;
-        real_parser.GetCastUnits(solving_id, si_res, cast_units);
+        real_parser.GetCastUnits(current_solving_id, si_res, cast_units);
         AddCastUnits(reply, cast_units);
     }
 
@@ -1091,7 +1097,7 @@ void CalculatorSolver::SolveReal(const rapidjson::Document& request, rapidjson::
     AddDependencies(reply, dependencies);
 }
 
-void CalculatorSolver::SolveInteger(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
+void CalculatorSolver::SolveInteger(const LogicalId& current_solving_id, const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
 {
     std::string expression = request["expression"].GetString();
     Notation default_notation = Notation::Decimal;
@@ -1103,7 +1109,7 @@ void CalculatorSolver::SolveInteger(const rapidjson::Document& request, rapidjso
 
     parser_context->Init(max_time);
     parser_context->no_result = false;
-    yutovo_calculator::Integer res = integer_parser.Parse(solving_id, expression, dependencies, default_notation, parser_context.get());
+    yutovo_calculator::Integer res = integer_parser.Parse(current_solving_id, expression, dependencies, default_notation, parser_context.get());
     if (parser_context->no_result)
     {
         AddDependencies(reply, dependencies);
@@ -1150,7 +1156,7 @@ void CalculatorSolver::SolveInteger(const rapidjson::Document& request, rapidjso
     AddDependencies(reply, dependencies);
 }
 
-void CalculatorSolver::SolveRational(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
+void CalculatorSolver::SolveRational(const LogicalId& current_solving_id, const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
 {
     std::string expression = request["expression"].GetString();
 
@@ -1158,7 +1164,7 @@ void CalculatorSolver::SolveRational(const rapidjson::Document& request, rapidjs
 
     parser_context->Init(max_time);
     parser_context->no_result = false;
-    Rational si_res = rational_parser.Parse(solving_id, expression, dependencies, parser_context.get());
+    Rational si_res = rational_parser.Parse(current_solving_id, expression, dependencies, parser_context.get());
     if (parser_context->no_result)
     {
         AddDependencies(reply, dependencies);
@@ -1169,9 +1175,9 @@ void CalculatorSolver::SolveRational(const rapidjson::Document& request, rapidjs
     Rational res;
     Unit unit;
     if (GetUnit(request, unit))
-        res = rational_parser.CastToUnit(solving_id, si_res, unit);
+        res = rational_parser.CastToUnit(current_solving_id, si_res, unit);
     else
-        res = rational_parser.GetSuitableUnit(solving_id, si_res);
+        res = rational_parser.GetSuitableUnit(current_solving_id, si_res);
 
     reply.AddMember("result_type", (int)ResultType::RATIONAL, alloc);
     FractionForm form = FractionForm::Improper;
@@ -1217,14 +1223,14 @@ void CalculatorSolver::SolveRational(const rapidjson::Document& request, rapidjs
     if (!si_res.unit.IsEmpty())
     {
         std::vector<Unit> cast_units;
-        rational_parser.GetCastUnits(solving_id, si_res, cast_units);
+        rational_parser.GetCastUnits(current_solving_id, si_res, cast_units);
         AddCastUnits(reply, cast_units);
     }
 
     AddDependencies(reply, dependencies);
 }
 
-void CalculatorSolver::SolveComplex(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
+void CalculatorSolver::SolveComplex(const LogicalId& current_solving_id, const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
 {
     std::string expression = request["expression"].GetString();
     
@@ -1260,7 +1266,7 @@ void CalculatorSolver::SolveComplex(const rapidjson::Document& request, rapidjso
     std::vector<Complex> results;
     parser_context->Init(max_time);
     parser_context->no_result = false;
-    complex_parser.Parse(solving_id, expression, dependencies, default_angle_measure, result_angle_measure, precision, max_count, results, 
+    complex_parser.Parse(current_solving_id, expression, dependencies, default_angle_measure, result_angle_measure, precision, max_count, results, 
         parser_context.get());
     if (parser_context->no_result)
     {
@@ -1314,7 +1320,7 @@ void CalculatorSolver::SolveComplex(const rapidjson::Document& request, rapidjso
     AddDependencies(reply, dependencies);
 }
 
-void CalculatorSolver::SolveArrayReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
+void CalculatorSolver::SolveArrayReal(const LogicalId& current_solving_id, const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
 {
     std::string expression = request["expression"].GetString();
     
@@ -1346,7 +1352,7 @@ void CalculatorSolver::SolveArrayReal(const rapidjson::Document& request, rapidj
     parser_context->Init(max_time);
     parser_context->no_result = false;
     parser_context->include_document = include_document;
-    Array<Real> si_res = array_real_parser.Parse(solving_id, expression, dependencies, default_angle_measure, result_angle_measure, precision, 
+    Array<Real> si_res = array_real_parser.Parse(current_solving_id, expression, dependencies, default_angle_measure, result_angle_measure, precision, 
         parser_context.get());
     if (parser_context->no_result)
     {
@@ -1371,9 +1377,9 @@ void CalculatorSolver::SolveArrayReal(const rapidjson::Document& request, rapidj
         real_parser.ClearCastUnits();
         Unit unit;
         if (GetUnit(request, unit))
-            r = real_parser.CastToUnit(solving_id, r, unit);
+            r = real_parser.CastToUnit(current_solving_id, r, unit);
         else
-            r = real_parser.GetSuitableUnit(solving_id, r);
+            r = real_parser.GetSuitableUnit(current_solving_id, r);
 
         r.ToString(exponent_size, precision, mantissa_sign, mantissa, exponent_sign, exponent);
         if (mantissa_sign)
@@ -1406,7 +1412,7 @@ void CalculatorSolver::SolveArrayReal(const rapidjson::Document& request, rapidj
     AddDependencies(reply, dependencies);
 }
 
-void CalculatorSolver::SolveSymbolicReal(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
+void CalculatorSolver::SolveSymbolicReal(const LogicalId& current_solving_id, const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
 {
     std::string expression = request["expression"].GetString();
 
@@ -1424,7 +1430,7 @@ void CalculatorSolver::SolveSymbolicReal(const rapidjson::Document& request, rap
 
     parser_context->Init(max_time);
     parser_context->no_result = false;
-    Symbolic<Real> res = symbolic_real_parser.Parse(solving_id, expression, dependencies, precision, parser_context.get());
+    Symbolic<Real> res = symbolic_real_parser.Parse(current_solving_id, expression, dependencies, precision, parser_context.get());
     if (parser_context->no_result)
     {
         AddDependencies(reply, dependencies);
@@ -1445,7 +1451,7 @@ void CalculatorSolver::SolveSymbolicReal(const rapidjson::Document& request, rap
     AddDependencies(reply, dependencies);
 }
 
-void CalculatorSolver::SolveSymbolicRational(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
+void CalculatorSolver::SolveSymbolicRational(const LogicalId& current_solving_id, const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
 {
     std::string expression = request["expression"].GetString();
 
@@ -1453,7 +1459,7 @@ void CalculatorSolver::SolveSymbolicRational(const rapidjson::Document& request,
 
     parser_context->Init(max_time);
     parser_context->no_result = false;
-    Symbolic<Rational> res = symbolic_rational_parser.Parse(solving_id, expression, dependencies, 0, parser_context.get());
+    Symbolic<Rational> res = symbolic_rational_parser.Parse(current_solving_id, expression, dependencies, 0, parser_context.get());
     if (parser_context->no_result)
     {
         AddDependencies(reply, dependencies);
@@ -1474,7 +1480,7 @@ void CalculatorSolver::SolveSymbolicRational(const rapidjson::Document& request,
     AddDependencies(reply, dependencies);
 }
 
-void CalculatorSolver::SolveSymbolicComplex(const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
+void CalculatorSolver::SolveSymbolicComplex(const LogicalId& current_solving_id, const rapidjson::Document& request, rapidjson::Document& reply, std::vector<std::u32string>* dependencies)
 {
     std::string expression = request["expression"].GetString();
 
@@ -1492,7 +1498,7 @@ void CalculatorSolver::SolveSymbolicComplex(const rapidjson::Document& request, 
 
     parser_context->Init(max_time);
     parser_context->no_result = false;
-    Symbolic<Complex> res = symbolic_complex_parser.Parse(solving_id, expression, dependencies, precision, parser_context.get());
+    Symbolic<Complex> res = symbolic_complex_parser.Parse(current_solving_id, expression, dependencies, precision, parser_context.get());
     if (parser_context->no_result)
     {
         AddDependencies(reply, dependencies);
