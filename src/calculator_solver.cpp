@@ -71,7 +71,7 @@ void CalculatorSolver::Solve(const rapidjson::Document& request, rapidjson::Docu
     if (!parser_context)
     {
         if (process)
-            process->SendAction(solver_guid, "solve", request, reply, (int)locale.language);
+            process->SendAction(solver_guid, "solve", request, reply, (int)locale.language.load());
         else
             ReplyError(ErrorCode::SOLVER_ERROR, reply);
         return;
@@ -486,7 +486,7 @@ void CalculatorSolver::RemoveIdentifier(const rapidjson::Document& request, rapi
     if (!parser_context)
     {
         if (process)
-            process->SendAction(solver_guid, "remove_identifier", request, reply, (int)locale.language);
+            process->SendAction(solver_guid, "remove_identifier", request, reply, (int)locale.language.load());
         else
             ReplyError(ErrorCode::SOLVER_ERROR, reply);
         return;
@@ -530,7 +530,7 @@ void CalculatorSolver::RemoveUserIdentifiers(const rapidjson::Document& request,
     if (!parser_context)
     {
         if (process)
-            process->SendAction(solver_guid, "remove_user_identifiers", request, reply, (int)locale.language);
+            process->SendAction(solver_guid, "remove_user_identifiers", request, reply, (int)locale.language.load());
         else
             ReplyError(ErrorCode::SOLVER_ERROR, reply);
         return;
@@ -561,7 +561,7 @@ void CalculatorSolver::ListIdentifiers(const rapidjson::Document& request, rapid
     if (!parser_context)
     {
         if (process)
-            process->SendAction(solver_guid, "list_identifiers", request, reply, (int)locale.language);
+            process->SendAction(solver_guid, "list_identifiers", request, reply, (int)locale.language.load());
         else
             ReplyError(ErrorCode::SOLVER_ERROR, reply);
         return;
@@ -975,7 +975,7 @@ bool CalculatorSolver::SetLocale(const rapidjson::Document& request, rapidjson::
         if (request.HasMember("language") && request["language"].IsInt())
             locale.language = (Language)request["language"].GetInt();
         if (process)
-            process->SendAction(solver_guid, "set_locale", request, reply, (int)locale.language);
+            process->SendAction(solver_guid, "set_locale", request, reply, (int)locale.language.load());
         else
             ReplyError(ErrorCode::SOLVER_ERROR, reply);
         return !reply.HasMember("error");

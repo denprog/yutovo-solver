@@ -25,9 +25,9 @@ namespace yutovo_solver
 
 Solver::Solver(const std::string& _document_guid, const std::string& _solver_guid, const yutovo_calculator::Language _language) :
     document_guid(_document_guid), 
-    solver_guid(_solver_guid),
-    locale{_language}
+    solver_guid(_solver_guid)
 {
+    locale.language.store(_language);
 }
 
 void Solver::SetMaxTime(const uint64_t _max_time)
@@ -325,7 +325,9 @@ void Solvers::SetLocale(const std::string& solver_guid, const yutovo_calculator:
             solver->SetLocale(request, reply);
     }
 
-    solvers_locales[solver_guid] = SolverLocale{language};
+    SolverLocale new_locale;
+    new_locale.language.store(language);
+    solvers_locales[solver_guid] = new_locale;
 }
 
 void Solvers::RemoveUserIdentifiers(const std::string& solver_guid, const rapidjson::Document& request, rapidjson::Document& reply)
