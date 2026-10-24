@@ -1,5 +1,0 @@
-get_filename_component(SELF_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
-if(NOT EMSCRIPTEN)
-    find_package(Boost REQUIRED COMPONENTS process)
-endif()
-include(${SELF_DIR}/yutovo-solver.cmake)

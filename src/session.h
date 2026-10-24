@@ -41,10 +41,12 @@ struct ServiceContext;
 
 using namespace yutovo;
 
-class Session
+class Session : public std::enable_shared_from_this<Session>
 {
 public:
     Session(ServiceContext* _service_context, const std::string& _logs_path, bool _log_console, bool _log_file);
+
+    void Run();
 
     void Parse(const std::string& json, std::string& reply);
     void SetMaxTime(const uint64_t max_time);
@@ -108,6 +110,23 @@ private:
     Logger* logger;
 };
 #endif
+
+class Listener : public std::enable_shared_from_this<Listener>
+{
+public:
+    Listener(ServiceContext* _service_context, tcp::endpoint end_point, Logger* _logger);
+
+    void Run();
+
+private:
+    void DoAccept();
+    void OnAccept(beast::error_code ec, tcp::socket socket);
+
+private:
+    ServiceContext* service_context;
+    tcp::acceptor acceptor;
+    Logger* logger;
+};
 
 }
 

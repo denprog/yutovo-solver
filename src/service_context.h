@@ -29,8 +29,19 @@ struct ServiceContext
     ServiceContext(ServiceConfig* service_config, const std::string& _logs_path, bool _log_console, bool _log_file) :
         solvers(service_config, _logs_path, _log_console, _log_file)
     {
+        ssl_context.use_certificate_chain_file("yutovo_service.crt");
+        ssl_context.use_private_key_file("yutovo_service.key", ssl::context_base::file_format::pem);
+        ssl_context.set_default_verify_paths();
+        ssl_context.set_options(boost::asio::ssl::context::default_workarounds |
+            boost::asio::ssl::context::no_compression |
+            boost::asio::ssl::context::no_sslv2 |
+            boost::asio::ssl::context::no_sslv3 |
+            boost::asio::ssl::context::no_tlsv1
+        );        
     }
 
+    asio::io_context& io_context;
+    ssl::context ssl_context{ssl::context::tlsv12};
     Solvers solvers;
     bool exit = false;
 };

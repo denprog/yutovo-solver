@@ -26,6 +26,97 @@ Session::Session(ServiceContext* _service_context, const std::string& _logs_path
 {
 }
 
+void Session::Run()
+{
+    asio::dispatch(ws.get_executor(), beast::bind_front_handler(&Session::OnRun, shared_from_this()));
+}
+
+void Session::OnRun()
+{
+    beast::get_lowest_layer(ws).expires_after(std::chrono::seconds(30));
+    ws.next_layer().async_handshake(ssl::stream_base::server, beast::bind_front_handler(&Session::OnHandshake, shared_from_this()));
+}
+
+void Session::OnHandshake(beast::error_code ec)
+{
+    if (ec)
+    {
+        logger->Error("OnHandshake error: {}", ec.message());
+        return;
+    }
+
+    beast::get_lowest_layer(ws).expires_never();
+    ws.set_option(websocket::stream_base::timeout::suggested(beast::role_type::server));
+    ws.set_option(websocket::stream_base::decorator(
+        [](websocket::response_type& res)
+        {
+            res.set(http::field::server, "Yutovo service");
+        }));
+
+    ws.async_accept(beast::bind_front_handler(&Session::OnAccept, shared_from_this()));
+}
+
+void Session::OnAccept(beast::error_code ec)
+{
+    if (ec)
+    {
+        logger->Error("OnAccept error: {}", ec.message());
+        return;
+    }
+
+    DoRead();
+}
+
+void Session::DoRead()
+{
+    ws.async_read(buffer, beast::bind_front_handler(&Session::OnRead, shared_from_this()));
+}
+
+void Session::OnRead(beast::error_code ec, std::size_t bytes_transferred)
+{
+    boost::ignore_unused(bytes_transferred);
+
+    if (ec == websocket::error::closed)
+        return;
+
+    if (ec)
+    {
+        logger->Error("OnRead error: {}", ec.message());
+        return;
+    }
+
+    if (!ws.got_text())
+        return;
+
+    std::string json = beast::buffers_to_string(buffer.data());
+    logger->Info("Request received:\n{}", json);
+
+    buffer.clear();
+
+    Parse(json, reply);
+
+    ws.text(ws.got_text());
+
+    ws.async_write(boost::asio::buffer(reply), beast::bind_front_handler(&Session::OnWrite, shared_from_this()));
+}
+
+void Session::OnWrite(beast::error_code ec, std::size_t bytes_transferred)
+{
+    boost::ignore_unused(bytes_transferred);
+
+    if (ec)
+    {
+        logger->Error("OnWrite error: {}", ec.message());
+        return;
+    }
+
+    logger->Info("Reply sent:\n{}", beast::buffers_to_string(buffer.data()));
+
+    buffer.consume(buffer.size());
+
+    DoRead();
+}
+
 void Session::Parse(const std::string& json, std::string& reply)
 {
     rapidjson::Document request_json;
