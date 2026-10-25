@@ -8,6 +8,7 @@
 #ifndef __SERVICE_SOLVER_H__
 #define __SERVICE_SOLVER_H__
 
+#include <atomic>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -26,7 +27,20 @@ using namespace yutovo;
 
 struct SolverLocale
 {
-    yutovo_calculator::Language language = Language::English;
+    SolverLocale() = default;
+
+    SolverLocale(const SolverLocale& other)
+    {
+        language.store(other.language.load());
+    }
+
+    SolverLocale& operator=(const SolverLocale& other)
+    {
+        language.store(other.language.load());
+        return *this;
+    }
+
+    std::atomic<yutovo_calculator::Language> language = Language::English;
 };
 
 class Solver

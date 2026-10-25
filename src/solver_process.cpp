@@ -306,6 +306,9 @@ bool SolverProcess::EnsureStarted()
     if (!child->running(running_ec))
     {
         logger->Error("Failed to start calculator worker");
+        //the worker died right after the spawn, reap it before dropping the handle or it stays a zombie
+        boost::system::error_code wait_ec;
+        child->wait(wait_ec);
         child.reset();
         return false;
     }
@@ -379,6 +382,8 @@ void SolverProcess::SendLine(const std::string& line)
     std::lock_guard<std::mutex> lock(send_mutex);
     boost::system::error_code ec;
     boost::asio::write(child->get_stdin(), boost::asio::buffer(line), ec);
+    if (ec)
+        logger->Error("Failed to write to the calculator worker stdin: {}", ec.message());
 }
 
 //Returns the number of bytes read into the buffer, 0 when nothing arrived during the wait, -1 when the pipe is closed
