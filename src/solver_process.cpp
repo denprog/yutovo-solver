@@ -48,6 +48,10 @@ static std::map<std::string, std::weak_ptr<SolverProcess>> worker_registry; //wo
 //Never run, it only backs the executor carried by the worker pipes and process handles
 static boost::asio::io_context worker_io_context;
 
+//Concurrent forks of one multithreaded process can deadlock a forked child inside io_context::notify_fork,
+//when another thread holds the context mutex in its own fork_prepare, so worker spawns must be serialized
+static std::mutex worker_spawn_mutex;
+
 //SolverProcess
 
 SolverProcess::SolverProcess(const std::string& _document_guid, uint64_t _max_time, const std::string& _logs_path, bool _log_console,
@@ -287,6 +291,7 @@ bool SolverProcess::EnsureStarted()
     try
     {
         //popen wires stdin/stdout to its pipes, stderr is inherited by default
+        std::lock_guard<std::mutex> spawn_lock(worker_spawn_mutex);
         child.reset(new boost::process::v2::popen(worker_io_context, exe,
             {document_guid, logs_path, log_file ? "1" : "0"}
 #ifdef _WIN32

@@ -82,6 +82,9 @@ else()
     target_compile_options(${PROJECT_NAME} PUBLIC -Wno-deprecated-declarations)
 endif()
 
+#the io_context carried by the worker pipes is never run, its fork notifications only add an unsafe non-async-signal-safe lock in the forked child
+target_compile_definitions(${PROJECT_NAME} PRIVATE BOOST_PROCESS_V2_DISABLE_NOTIFY_FORK)
+
 set(CMAKE_DEBUG_POSTFIX d)
 
 if(EMSCRIPTEN)
@@ -113,7 +116,8 @@ if(NOT EMSCRIPTEN AND NOT REMOTE_MODE)
     )
 
     set_target_properties(${PROJECT_NAME}-calculator-worker PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
-    
+    target_compile_definitions(${PROJECT_NAME}-calculator-worker PRIVATE BOOST_PROCESS_V2_DISABLE_NOTIFY_FORK)
+
     if(WIN32)
         target_link_libraries(${PROJECT_NAME}-calculator-worker PRIVATE
             yutovo-calculator
