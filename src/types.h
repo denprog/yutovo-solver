@@ -46,7 +46,10 @@ enum class ResultType
     ARRAY_REAL,
     SYMBOLIC_REAL,
     SYMBOLIC_RATIONAL,
-    SYMBOLIC_COMPLEX
+    SYMBOLIC_COMPLEX,
+    VECTOR_REAL,
+    VECTOR_RATIONAL,
+    VECTOR_COMPLEX
 };
 
 enum class ErrorCode
